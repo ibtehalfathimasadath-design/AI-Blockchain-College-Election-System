@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block title %}Apply for Nomination | College Election System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 Nomination Application</h1>
+    <p>Submit your candidacy with required verification documents (PDF only)</p>
+</div>
+
+<!-- Eligibility Rules -->
+<div class="eligibility-rules">
+    <h3>📜 Eligibility Criteria</h3>
+    <div class="rules-grid">
+        <div class="rule-card">
+            <span class="rule-role">📌 Joint Secretary</span>
+            <span class="rule-year">1st Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+        <div class="rule-card">
+            <span class="rule-role">🥈 Vice President</span>
+            <span class="rule-year">2nd Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+        <div class="rule-card">
+            <span class="rule-role">🏅 General Secretary</span>
+            <span class="rule-year">2nd Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+        <div class="rule-card">
+            <span class="rule-role">💰 Treasurer</span>
+            <span class="rule-year">2nd Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+        <div class="rule-card">
+            <span class="rule-role">👑 President</span>
+            <span class="rule-year">3rd Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+        <div class="rule-card">
+            <span class="rule-role">📝 Secretary</span>
+            <span class="rule-year">3rd Year only</span>
+            <span class="rule-req">No backlogs</span>
+        </div>
+    </div>
+</div>
+
+<div class="two-col-layout">
+    <div class="form-panel" style="flex:2;">
+        <div class="panel-header">
+            <h2>📄 Application Form</h2>
+            <p>All fields are required. Documents must be <strong>PDF format only</strong>.</p>
+        </div>
+
+        <form action="{{ url_for('apply_nomination') }}" method="POST"
+              enctype="multipart/form-data" id="nominationForm" novalidate>
+
+            <!-- Personal Info -->
+            <div class="form-section-title">Personal Information</div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="applicant_name">Full Name <span class="required">*</span></label>
+                    <input type="text" id="applicant_name" name="applicant_name"
+                           placeholder="As printed on your ID card" required minlength="2"
+                           value="{{ current_user.full_name or current_user.username }}">
+                    <span class="field-error" id="nameError"></span>
+                </div>
+                <div class="form-group">
+                    <label for="department">Department <span class="required">*</span></label>
+                    <select id="department" name="department" required>
+                        <option value="">Select Department</option>
+                        <option value="BCA">BCA</option>
+                        <option value="B.com">B.com</option>
+                        <option value="BBA">BBA</option>
+                        <option value="BA">BA</option>
+                        <option value="BSc">BSc</option>
+                    </select>
+                    <span class="field-error" id="deptError"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="year">Year of Study <span class="required">*</span></label>
+                    <select id="year" name="year" required onchange="filterPositionsByYear()">
+                        <option value="">Select Year</option>
+                        <option value="1st Year">1st Year</option>
+                        <option value="2nd Year">2nd Year</option>
+                        <option value="3rd Year">3rd Year</option>
+                    </select>
+                    <span class="field-error" id="yearError"></span>
+                </div>
+                <div class="form-group">
+                    <label for="cgpa">CGPA <span class="required">*</span></label>
+                    <input type="number" id="cgpa" name="cgpa" min="0" max="10" step="0.01"
+                           placeholder="e.g. 7.5" required>
+                    <span class="field-error" id="cgpaError"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="desired_role">Position Applied For <span class="required">*</span></label>
+                <select id="desired_role" name="desired_role" required>
+                    <option value="">Select Position</option>
+                    <option value="President" data-years="3">👑 President</option>
+                    <option value="Vice President" data-years="2">🥈 Vice President</option>
+                    <option value="Secretary" data-years="1,2,3">📝 Secretary</option>
+                    <option value="Treasurer" data-years="2,3">💰 Treasurer</option>
+                    <option value="General Secretary" data-years="2,3">🏅 General Secretary</option>
+                    <option value="Joint Secretary" data-years="1,2">📌 Joint Secretary</option>
+                </select>
+                <div class="field-hint" id="roleHint" style="color:#0d6efd;display:none;"></div>
+                <span class="field-error" id="roleError"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="manifesto">Election Manifesto <span class="optional">(Optional)</span></label>
+                <textarea id="manifesto" name="manifesto" rows="3"
+                          placeholder="Describe your plans and goals if elected (max 500 characters)"
+                          maxlength="500"></textarea>
+                <div class="char-counter"><span id="charCount">0</span>/500</div>
+            </div>
+
+            <!-- Document Uploads -->
+            <div class="form-section-title">Document Upload — PDF Files Only</div>
+
+            <!-- PDF-only notice banner -->
+            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.3rem;">⚠️</span>
+                <span style="font-size:0.95rem;color:#856404;">
+                    <strong>PDF format required.</strong> JPG, PNG, and other image formats are <strong>not accepted</strong>. Please convert your documents to PDF before uploading.
+                </span>
+            </div>
+
+            <div class="upload-trio">
+                <!-- ID Card -->
+                <div class="form-group upload-group">
+                    <label>🪪 Student ID Card <span class="required">*</span></label>
+                    <div class="file-upload-box" id="idBox"
+                         onclick="document.getElementById('id_card').click()">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text" id="idText">Upload ID Card</div>
+                        <div class="upload-hint">PDF only — AI extracts: Name, Year, Dept</div>
+                        <div class="upload-preview" id="idPreview"></div>
+                    </div>
+                    <input type="file" id="id_card" name="id_card"
+                           accept=".pdf" required
+                           onchange="handlePDFUpload(this, 'idPreview', 'idBox', 'idText', 'idError', 'ID Card')"
+                           style="display:none;">
+                    <span class="field-error" id="idError"></span>
+                </div>
+
+                <!-- Fee Receipt -->
+                <div class="form-group upload-group">
+                    <label>🧾 Fee Receipt <span class="required">*</span></label>
+                    <div class="file-upload-box" id="feeBox"
+                         onclick="document.getElementById('fee_receipt').click()">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text" id="feeText">Upload Fee Receipt</div>
+                        <div class="upload-hint">PDF only — AI verifies: Payment status</div>
+                        <div class="upload-preview" id="feePreview"></div>
+                    </div>
+                    <input type="file" id="fee_receipt" name="fee_receipt"
+                           accept=".pdf" required
+                           onchange="handlePDFUpload(this, 'feePreview', 'feeBox', 'feeText', 'feeError', 'Fee Receipt')"
+                           style="display:none;">
+                    <span class="field-error" id="feeError"></span>
+                </div>
+
+                <!-- Result Sheet -->
+                <div class="form-group upload-group">
+                    <label>📊 Semester Result Sheet <span class="required">*</span></label>
+                    <div class="file-upload-box" id="resultBox"
+                         onclick="document.getElementById('result_sheet').click()">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text" id="resultText">Upload Result Sheet</div>
+                        <div class="upload-hint">PDF only — AI checks: PASS/FAIL/BACKLOG</div>
+                        <div class="upload-preview" id="resultPreview"></div>
+                    </div>
+                    <input type="file" id="result_sheet" name="result_sheet"
+                           accept=".pdf" required
+                           onchange="handlePDFUpload(this, 'resultPreview', 'resultBox', 'resultText', 'resultError', 'Result Sheet')"
+                           style="display:none;">
+                    <span class="field-error" id="resultError"></span>
+                </div>
+            </div>
+
+            <div class="ai-process-notice">
+                <h4>🤖 What the AI System Checks:</h4>
+                <ul>
+                    <li>✅ Fee payment status from receipt PDF</li>
+                    <li>✅ Academic year from ID card PDF</li>
+                    <li>✅ PASS / FAIL keywords in result sheet PDF</li>
+                    <li>✅ Year eligibility for desired role (e.g., 3rd Year → President)</li>
+                    <li>✅ Fraud / tampering detection on all PDFs</li>
+                </ul>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full btn-lg" id="submitBtn">
+                🚀 Submit Nomination Application
+            </button>
+        </form>
+    </div>
+
+    <!-- Side Info -->
+    <div class="info-panel" style="flex:1;">
+        <div class="info-box">
+            <h3>📋 Process Timeline</h3>
+            <div class="timeline">
+                <div class="tl-item">
+                    <div class="tl-dot active"></div>
+                    <div class="tl-content">
+                        <strong>Submit Application</strong>
+                        <p>Upload PDF documents and fill form</p>
+                    </div>
+                </div>
+                <div class="tl-item">
+                    <div class="tl-dot active"></div>
+                    <div class="tl-content">
+                        <strong>AI Processing</strong>
+                        <p>OCR reads PDF documents instantly</p>
+                    </div>
+                </div>
+                <div class="tl-item">
+                    <div class="tl-dot active"></div>
+                    <div class="tl-content">
+                        <strong>Eligibility Check</strong>
+                        <p>Automated rule-based validation</p>
+                    </div>
+                </div>
+                <div class="tl-item">
+                    <div class="tl-dot active"></div>
+                    <div class="tl-content">
+                        <strong>Email Notification</strong>
+                        <p>Result sent to your email</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box" style="margin-top:20px;">
+            <h3>⚠️ Important Notes</h3>
+            <ul class="requirements-list">
+                <li>One nomination per student</li>
+                <li>Documents must be clear and readable</li>
+                <li><strong>Only PDF format accepted</strong></li>
+                <li>JPG / PNG formats are rejected</li>
+                <li>Decision is final and automated</li>
+                <li>Fake documents = permanent disqualification</li>
+            </ul>
+        </div>
+
+        <!-- How to convert to PDF box -->
+        <div class="info-box" style="margin-top:20px; background:#e8f5e9; border-color:#4caf50;">
+            <h3 style="color:#2e7d32;">📎 How to Convert to PDF</h3>
+            <ul class="requirements-list" style="color:#1b5e20;">
+                <li>Phone: Use <strong>CamScanner</strong> or <strong>Adobe Scan</strong></li>
+                <li>Windows: Print → <strong>Save as PDF</strong></li>
+                <li>Image: Open in Paint → Save As → PDF</li>
+                <li>Online: <strong>img2pdf.com</strong> or <strong>ilovepdf.com</strong></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Year-to-position mapping
+const yearPositionMap = {
+    '1': ['Secretary', 'Joint Secretary'],
+    '2': ['Vice President', 'Secretary', 'Treasurer', 'General Secretary', 'Joint Secretary'],
+    '3': ['President', 'Secretary', 'Treasurer', 'General Secretary'],
+    '4': ['President', 'Treasurer', 'General Secretary']
+};
+
+function getYearNum(yearStr) {
+    if (!yearStr) return null;
+    if (yearStr.includes('4')) return '4';
+    if (yearStr.includes('3')) return '3';
+    if (yearStr.includes('2')) return '2';
+    if (yearStr.includes('1')) return '1';
+    return null;
+}
+
+function filterPositionsByYear() {
+    const yearSelect = document.getElementById('year');
+    const yearVal    = yearSelect ? yearSelect.value : '';
+    const yearNum    = getYearNum(yearVal);
+    const roleSelect = document.getElementById('desired_role');
+    const hint       = document.getElementById('roleHint');
+
+    // Reset all options first
+    roleSelect.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) return;
+        opt.style.display = '';
+        opt.disabled = false;
+    });
+    roleSelect.value = '';
+
+    if (!yearNum) {
+        hint.style.display = 'none';
+        return;
+    }
+
+    const allowed  = yearPositionMap[yearNum] || [];
+    const labelMap = {'1': '1st Year', '2': '2nd Year', '3': '3rd Year'};
+
+    roleSelect.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) return;
+        const optYears = (opt.getAttribute('data-years') || '').split(',');
+        const isAllowed = optYears.includes(yearNum);
+        opt.style.display = isAllowed ? '' : 'none';
+        opt.disabled = !isAllowed;
+    });
+
+    if (allowed.length > 0) {
+        hint.style.display = '';
+        hint.textContent = `ℹ️ As a ${labelMap[yearNum]} student, you can apply for: ${allowed.join(', ')}`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', filterPositionsByYear);
+
+document.getElementById('manifesto').addEventListener('input', function() {
+    document.getElementById('charCount').textContent = this.value.length;
+});
+
+function handlePDFUpload(input, previewId, boxId, textId, errorId, label) {
+    const preview  = document.getElementById(previewId);
+    const box      = document.getElementById(boxId);
+    const textEl   = document.getElementById(textId);
+    const errorEl  = document.getElementById(errorId);
+
+    if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    const ext  = file.name.split('.').pop().toLowerCase();
+
+    // Strict PDF-only check
+    if (ext !== 'pdf' || file.type !== 'application/pdf') {
+        if (errorEl) errorEl.textContent = `Only PDF files are accepted. Please convert your ${label} to PDF first.`;
+        if (box)     box.style.borderColor = '#dc3545';
+        if (preview) preview.innerHTML = '<span style="color:#dc3545;font-size:0.85rem;">❌ Wrong format — PDF required</span>';
+        input.value = '';
+        return;
+    }
+
+    // Clear error
+    if (errorEl) errorEl.textContent = '';
+
+    // Show success state
+    if (box)    box.style.borderColor = '#28a745';
+    if (textEl) textEl.textContent    = '✅ ' + file.name;
+    if (preview) {
+        const sizeKB = (file.size / 1024).toFixed(1);
+        preview.innerHTML = `
+            <div style="margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:4px;font-size:0.8rem;color:#2e7d32;">
+                📄 PDF selected (${sizeKB} KB)
+            </div>`;
+    }
+}
+
+document.getElementById('nominationForm').addEventListener('submit', function(e) {
+    let valid = true;
+
+    // Clear all errors
+    document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+
+    const name   = document.getElementById('applicant_name').value.trim();
+    const dept   = document.getElementById('department').value;
+    const role   = document.getElementById('desired_role').value;
+    const idCard = document.getElementById('id_card').files;
+    const fee    = document.getElementById('fee_receipt').files;
+    const result = document.getElementById('result_sheet').files;
+
+    const year = document.getElementById('year').value;
+    const cgpa = document.getElementById('cgpa').value;
+
+    if (!name || name.length < 2) {
+        document.getElementById('nameError').textContent = 'Please enter your full name (min 2 characters)';
+        valid = false;
+    }
+    if (!dept) {
+        document.getElementById('deptError').textContent = 'Please select your department';
+        valid = false;
+    }
+    if (!year) {
+        document.getElementById('yearError').textContent = 'Please select your year of study';
+        valid = false;
+    }
+    if (!cgpa || cgpa < 0 || cgpa > 10) {
+        document.getElementById('cgpaError').textContent = 'Please enter a valid CGPA (0 - 10)';
+        valid = false;
+    }
+    if (!role) {
+        document.getElementById('roleError').textContent = 'Please select the position you are applying for';
+        valid = false;
+    }
+
+    function checkPDF(files, errorId, label) {
+        if (!files || !files[0]) {
+            document.getElementById(errorId).textContent = `Please upload your ${label} (PDF format)`;
+            return false;
+        }
+        const ext = files[0].name.split('.').pop().toLowerCase();
+        if (ext !== 'pdf') {
+            document.getElementById(errorId).textContent = `Only PDF accepted for ${label}. JPG/PNG not allowed.`;
+            return false;
+        }
+        return true;
+    }
+
+    if (!checkPDF(idCard, 'idError',     'Student ID Card'))        valid = false;
+    if (!checkPDF(fee,    'feeError',    'Fee Receipt'))             valid = false;
+    if (!checkPDF(result, 'resultError', 'Semester Result Sheet'))   valid = false;
+
+    if (!valid) {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        const btn = document.getElementById('submitBtn');
+        btn.textContent = '⏳ Submitting & Running AI Verification...';
+        btn.disabled    = true;
+    }
+});
+</script>
+{% endblock %}

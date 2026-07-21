@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard | College Election System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dash-welcome">
+        <h1>⚙️ Admin Dashboard</h1>
+        <p>Real-time election monitoring and management</p>
+    </div>
+    <div class="dash-actions">
+        <!-- FIX 9: AJAX form submission for instant feedback + email dispatch -->
+        <form onsubmit="return announceWinnersAjax(this);" method="POST">
+            <button type="submit" class="btn btn-primary">
+                🏆 Announce Winners &amp; Send Emails
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Cards (FIX 5: IDs so JS can update them live) -->
+<div class="admin-stats-grid">
+    <div class="admin-stat-card stat-blue">
+        <div class="asc-icon">🗳️</div>
+        <div class="asc-data">
+            <div class="asc-number" id="stat-total-votes">{{ stats.total_votes }}</div>
+            <div class="asc-label">Total Votes Cast</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-purple">
+        <div class="asc-icon">👥</div>
+        <div class="asc-data">
+            <div class="asc-number" id="stat-total-voters">{{ stats.total_voters }}</div>
+            <div class="asc-label">Registered Voters</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-green">
+        <div class="asc-icon">✅</div>
+        <div class="asc-data">
+            <div class="asc-number" id="stat-approved">{{ stats.approved }}</div>
+            <div class="asc-label">Approved Nominations</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-red">
+        <div class="asc-icon">❌</div>
+        <div class="asc-data">
+            <div class="asc-number" id="stat-rejected">{{ stats.rejected }}</div>
+            <div class="asc-label">Rejected Nominations</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-yellow">
+        <div class="asc-icon">⏳</div>
+        <div class="asc-data">
+            <div class="asc-number" id="stat-pending">{{ stats.pending }}</div>
+            <div class="asc-label">Pending Review</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-teal">
+        <div class="asc-icon">⛓️</div>
+        <div class="asc-data">
+            <div class="asc-number" id="chainLengthStat">{{ chain_length }}</div>
+            <div class="asc-label">Blockchain Blocks</div>
+        </div>
+    </div>
+</div>
+
+<!-- Blockchain Status -->
+<div class="blockchain-health-bar">
+    <div class="bc-health-item">
+        <span class="bc-health-label">Blockchain Integrity:</span>
+        {% if blockchain_valid %}
+            <span class="bc-health-value valid" id="bc-integrity">✅ VALID — No tampering detected</span>
+        {% else %}
+            <span class="bc-health-value invalid" id="bc-integrity">❌ INVALID — Chain integrity compromised!</span>
+        {% endif %}
+    </div>
+    <div class="bc-health-item">
+        <span class="bc-health-label">Algorithm:</span>
+        <span class="bc-health-value">SHA-256 Proof of Work</span>
+    </div>
+    <div class="bc-health-item">
+        <span class="bc-health-label">Blocks:</span>
+        <span class="bc-health-value" id="adminChainLength">{{ chain_length }}</span>
+    </div>
+    <div class="bc-health-item">
+        <!-- FIX 6: Refresh button fetches latest data and updates UI -->
+        <button class="btn btn-sm btn-outline" onclick="refreshAll()" id="refreshBtn">🔄 Refresh</button>
+        <span id="last-updated" style="font-size:12px; color:#888; margin-left:8px;"></span>
+    </div>
+</div>
+
+<!-- Live Vote Counts -->
+<div class="section">
+    <div class="section-header">
+        <h2>📊 Live Vote Counts</h2>
+        <span class="live-indicator" id="liveIndicator">🔴 LIVE</span>
+        <button class="btn btn-sm btn-outline" onclick="refreshVoteCounts()">🔄 Refresh Counts</button>
+    </div>
+
+    <div id="voteCountsGrid" class="vote-counts-grid">
+        {% if vote_counts %}
+            {% set current_role = namespace(value='') %}
+            {% for vc in vote_counts %}
+                {% if vc.role != current_role.value %}
+                    {% set current_role.value = vc.role %}
+                    <div class="vote-role-section">
+                    <h3>{{ vc.role }}</h3>
+                    <div class="vote-bars">
+                {% endif %}
+                <div class="vote-bar-item">
+                    <div class="vbi-header">
+                        <span class="vbi-name">{{ vc.name }}</span>
+                        <span class="vbi-count" id="vc-{{ vc.id }}">{{ vc.vote_count }} votes</span>
+                    </div>
+                    <div class="vote-bar-track">
+                        <div class="vote-bar-fill" style="width: {{ [vc.vote_count * 20, 100] | min }}%;">
+                            {{ vc.vote_count }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div></div>
+        {% else %}
+            <div class="empty-state" style="padding: 40px;" id="noVotesMsg">
+                <p>No votes cast yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Two Column Section -->
+<div class="two-col-layout" style="align-items: start;">
+    <!-- Recent Nominations -->
+    <div style="flex:1;">
+        <div class="section-header">
+            <h2>📋 Recent Nominations</h2>
+            <a href="{{ url_for('admin_nominations') }}" class="btn btn-sm btn-outline">View All</a>
+        </div>
+        <div class="nominations-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Name</th><th>Role</th><th>Dept</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for nom in recent_nominations %}
+                    <tr>
+                        <td>{{ nom.name }}</td>
+                        <td>{{ nom.role }}</td>
+                        <td>{{ nom.department[:10] }}{% if nom.department|length > 10 %}...{% endif %}</td>
+                        <td>
+                            <span class="badge badge-{{ nom.status }}">
+                                {% if nom.status == 'approved' %}✅{% elif nom.status == 'rejected' %}❌{% else %}⏳{% endif %}
+                                {{ nom.status | title }}
+                            </span>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('update_nomination_status', nom_id=nom.id) }}"
+                                  method="POST" style="display:inline;">
+                                <select name="status" class="inline-select"
+                                        onchange="this.form.submit()" title="Change status">
+                                    <option value="">Change</option>
+                                    <option value="approved">Approve</option>
+                                    <option value="rejected">Reject</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div style="flex:0 0 280px;">
+        <h2>⚡ Quick Actions</h2>
+        <div class="admin-quick-links">
+            <a href="{{ url_for('admin_nominations') }}" class="aql-item">
+                <span class="aql-icon">📋</span>
+                <div><strong>Manage Nominations</strong><span>Approve / Reject applications</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('admin_nominations') }}?status=pending" class="aql-item">
+                <span class="aql-icon">⏳</span>
+                <div><strong>Pending Reviews</strong><span id="ql-pending">{{ stats.pending }} awaiting action</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('admin_votes') }}" class="aql-item">
+                <span class="aql-icon">⛓️</span>
+                <div><strong>Blockchain Explorer</strong><span>View all vote records</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('election_results') }}" class="aql-item">
+                <span class="aql-icon">🏆</span>
+                <div><strong>Election Results</strong><span>View public results page</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="aql-item">
+                <span class="aql-icon">👥</span>
+                <div><strong>Users Database</strong><span>View, export, or clear users</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('admin_candidates') }}" class="aql-item">
+                <span class="aql-icon">🏅</span>
+                <div><strong>Candidates Database</strong><span>View, export, or clear candidates</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+            <a href="{{ url_for('admin_voters_list') }}" class="aql-item">
+                <span class="aql-icon">🗳️</span>
+                <div><strong>Voters Database</strong><span>View all vote records</span></div>
+                <span class="aql-arrow">→</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── FIX 2 + 8 + 9: Live stats refresh + working refresh button + AJAX winner announcement ──
+
+let autoRefreshInterval = null;
+
+function setLastUpdated() {
+    const now = new Date();
+    const t = now.toLocaleTimeString();
+    const el = document.getElementById('last-updated');
+    if (el) el.textContent = 'Last updated: ' + t;
+}
+
+// FIX 2 + 9: Full refresh — fetches /api/full-stats (new endpoint) + vote counts + blockchain
+function refreshAll() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.textContent = '⏳ Refreshing...'; btn.disabled = true; }
+
+    Promise.all([
+        fetch('/api/live-stats').then(r => r.json()),
+        fetch('/api/full-stats').then(r => r.json()),   // FIX 2: new endpoint
+        fetch('/api/blockchain-status').then(r => r.json()),
+    ])
+    .then(([liveStats, fullStats, bcStatus]) => {
+        // FIX 8: Update stat cards immediately from API response
+        setEl('stat-total-votes',  fullStats.total_votes);
+        setEl('stat-total-voters', fullStats.total_voters);
+        setEl('stat-approved',     fullStats.approved);
+        setEl('stat-rejected',     fullStats.rejected);
+        setEl('stat-pending',      fullStats.pending);
+        setEl('adminChainLength',  bcStatus.chain_length);
+        setEl('chainLengthStat',   bcStatus.chain_length);
+
+        // Update quick link pending count
+        const ql = document.getElementById('ql-pending');
+        if (ql) ql.textContent = fullStats.pending + ' awaiting action';
+
+        // Rebuild vote count grid with latest data
+        rebuildVoteGrid(liveStats);
+
+        setLastUpdated();
+        if (btn) { btn.textContent = '🔄 Refresh'; btn.disabled = false; }
+    })
+    .catch(err => {
+        console.error('Refresh error:', err);
+        if (btn) { btn.textContent = '🔄 Refresh'; btn.disabled = false; }
+    });
+}
+
+function refreshVoteCounts() {
+    fetch('/api/live-stats')
+        .then(r => r.json())
+        .then(data => { rebuildVoteGrid(data); setLastUpdated(); })
+        .catch(e => console.log('Vote count refresh error:', e));
+}
+
+function setEl(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+
+function rebuildVoteGrid(data) {
+    const grid = document.getElementById('voteCountsGrid');
+    if (!grid || !data || data.length === 0) return;
+
+    const byRole = {};
+    data.forEach(item => {
+        if (!byRole[item.role]) byRole[item.role] = [];
+        byRole[item.role].push(item);
+    });
+
+    let html = '';
+    for (const role in byRole) {
+        const maxVotes = Math.max(...byRole[role].map(i => i.vote_count), 1);
+        html += `<div class="vote-role-section"><h3>${role}</h3><div class="vote-bars">`;
+        byRole[role].forEach(item => {
+            const pct = Math.min((item.vote_count / maxVotes) * 100, 100);
+            html += `
+                <div class="vote-bar-item">
+                    <div class="vbi-header">
+                        <span class="vbi-name">${item.name}</span>
+                        <span class="vbi-count">${item.vote_count} vote${item.vote_count !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="vote-bar-track">
+                        <div class="vote-bar-fill" style="width:${pct}%;">${item.vote_count}</div>
+                    </div>
+                </div>`;
+        });
+        html += '</div></div>';
+    }
+    grid.innerHTML = html;
+}
+
+// FIX 6 + 9: AJAX announce winner — sends request, shows result without page reload
+function announceWinnersAjax(formEl) {
+    if (!confirm('Announce winners and send email notifications to all participants?')) return false;
+
+    const btn = formEl.querySelector('button[type=submit]');
+    if (btn) { btn.textContent = '⏳ Announcing...'; btn.disabled = true; }
+
+    const formData = new FormData(formEl);
+    fetch('/admin/announce-winner', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // FIX 8: Update UI immediately after result declaration
+            showAdminToast('🏆 Winners announced! Emails sent to winners and admin.', 'success');
+            refreshAll(); // re-fetch stats so dashboard is up to date
+        } else {
+            showAdminToast('⚠️ ' + (data.error || 'Failed to announce winners.'), 'error');
+        }
+        if (btn) { btn.textContent = '🏆 Announce Winners & Send Emails'; btn.disabled = false; }
+    })
+    .catch(err => {
+        console.error('Announce winner error:', err);
+        showAdminToast('⚠️ Network error. Please try again.', 'error');
+        if (btn) { btn.textContent = '🏆 Announce Winners & Send Emails'; btn.disabled = false; }
+    });
+
+    return false; // prevent normal form submission
+}
+
+function showAdminToast(message, type) {
+    const existing = document.getElementById('admin-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'admin-toast';
+    const bg = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#1a237e';
+    toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; z-index: 9999;
+        background: ${bg}; color: white; padding: 14px 22px;
+        border-radius: 8px; font-size: 0.95rem; font-weight: 500;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        max-width: 380px; line-height: 1.4;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.5s';
+        toast.style.opacity = '0';
+        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 500);
+    }, 5000);
+}
+
+// Auto-refresh every 15 seconds
+document.addEventListener('DOMContentLoaded', () => {
+    setLastUpdated();
+    autoRefreshInterval = setInterval(refreshAll, 15000);
+});
+</script>
+{% endblock %}
+

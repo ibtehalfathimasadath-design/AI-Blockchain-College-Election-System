@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}Votes & Blockchain | Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.chain-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #1a1a2e;
+    color: #e8e8e8;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.cs-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cs-dot.live   { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; animation: pulse 2s infinite; }
+.cs-dot.sim    { background: #f39c12; }
+.cs-dot.off    { background: #e74c3c; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.cs-item { display: flex; flex-direction: column; gap: 2px; }
+.cs-label { font-size: 0.65rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+.cs-value { font-size: 0.85rem; font-family: monospace; }
+.cs-sep   { width: 1px; height: 30px; background: #333; }
+.etherscan-badge {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-left: 6px;
+}
+.etherscan-badge:hover { background: #2980b9; }
+.event-tag {
+    display: inline-block;
+    background: #eaf4fd;
+    color: #2980b9;
+    border: 1px solid #bee3f8;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    font-family: monospace;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>⛓️ Votes & Ethereum Blockchain Explorer</h1>
+    <p>All votes stored on the Ethereum smart contract — real transactions, real hashes</p>
+</div>
+
+<!-- Live Chain Status Bar -->
+{% if chain_info %}
+<div class="chain-status-bar">
+    <div class="cs-dot {% if chain_info.connected and not chain_info.simulated %}live{% elif chain_info.simulated %}sim{% else %}off{% endif %}"></div>
+    <div class="cs-item">
+        <span class="cs-label">Network</span>
+        <span class="cs-value">{{ chain_info.network | capitalize }}{% if chain_info.simulated %} (Sim){% endif %}</span>
+    </div>
+    <div class="cs-sep"></div>
+    <div class="cs-item">
+        <span class="cs-label">Chain ID</span>
+        <span class="cs-value">{{ chain_info.chainId or 'N/A' }}</span>
+    </div>
+    <div class="cs-sep"></div>
+    <div class="cs-item">
+        <span class="cs-label">Latest Block</span>
+        <span class="cs-value">#{{ chain_info.blockNumber or '—' }}</span>
+    </div>
+    <div class="cs-sep"></div>
+    <div class="cs-item">
+        <span class="cs-label">Votes On-Chain</span>
+        <span class="cs-value">{{ chain_info.totalVotes or 0 }}</span>
+    </div>
+    <div class="cs-sep"></div>
+    <div class="cs-item">
+        <span class="cs-label">Contract</span>
+        <span class="cs-value" title="{{ chain_info.contractAddress }}">
+            {{ chain_info.contractAddress[:18] if chain_info.contractAddress else '—' }}...
+        </span>
+    </div>
+    {% if chain_info.network == 'sepolia' and chain_info.contractAddress %}
+    <a class="etherscan-badge"
+       href="https://sepolia.etherscan.io/address/{{ chain_info.contractAddress }}"
+       target="_blank" rel="noopener">View Contract on Etherscan ↗</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Tabs -->
+<div class="tab-nav" id="tabNav">
+    <button class="tab-btn active" onclick="showTab('votes')">🗳️ Vote Records ({{ votes|length }})</button>
+    <button class="tab-btn" onclick="showTab('blockchain')">⛓️ On-Chain Events ({{ chain_data|length }})</button>
+</div>
+
+<!-- ── Votes Tab ────────────────────────────────────────────── -->
+<div id="votes-tab" class="tab-content active">
+    {% if votes %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Voter</th>
+                    <th>Candidate</th>
+                    <th>Role</th>
+                    <th>Timestamp</th>
+                    <th>Tx Hash (Ethereum)</th>
+                    <th>Explorer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vote in votes %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ vote.voter_name }}</td>
+                    <td>{{ vote.candidate_name }}</td>
+                    <td><span class="badge badge-role">{{ vote.role }}</span></td>
+                    <td>{{ vote.timestamp[:19].replace('T', ' ') }}</td>
+                    <td>
+                        <span class="hash-short" title="{{ vote.blockchain_hash }}">
+                            {% if vote.blockchain_hash and vote.blockchain_hash != 'pending' %}
+                                {{ vote.blockchain_hash[:22] }}...
+                            {% else %}
+                                <span style="color:#f39c12;">⏳ pending</span>
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if vote.blockchain_hash and vote.blockchain_hash.startswith('0x') and chain_info and chain_info.network == 'sepolia' %}
+                        <a class="etherscan-badge"
+                           href="https://sepolia.etherscan.io/tx/{{ vote.blockchain_hash }}"
+                           target="_blank">↗</a>
+                        {% elif vote.blockchain_hash and vote.blockchain_hash.startswith('0x') %}
+                        <span class="event-tag">ganache</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="duplicate-check-panel">
+        <h3>🔍 On-Chain Duplicate Detection</h3>
+        <p style="color:#28a745;">
+            ✅ The smart contract enforces one-vote-per-voter-per-role at the Solidity level.
+               Any duplicate transaction is automatically reverted by the contract.
+        </p>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:60px;">
+        <div class="empty-icon">🗳️</div>
+        <h3>No votes cast yet</h3>
+        <p>Votes will appear here once students start voting.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Blockchain Events Tab ────────────────────────────────── -->
+<div id="blockchain-tab" class="tab-content">
+
+    {% if chain_data %}
+    <div class="blockchain-chain">
+        <!-- Genesis pseudo-block -->
+        <div class="bc-block bc-genesis">
+            <div class="bc-block-header">
+                <span class="bc-block-num">Contract Deployed</span>
+                <span class="bc-block-type">GENESIS</span>
+            </div>
+            <div class="bc-block-body">
+                <div class="bc-field">
+                    <span class="bc-field-label">Contract:</span>
+                    <span class="bc-field-value hash-value">
+                        {{ chain_info.contractAddress if chain_info else 'N/A' }}
+                    </span>
+                </div>
+                <div class="bc-field">
+                    <span class="bc-field-label">Network:</span>
+                    <span class="bc-field-value">
+                        {{ (chain_info.network | capitalize) if chain_info else 'N/A' }}
+                        (Chain {{ chain_info.chainId if chain_info else '' }})
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {% for block in chain_data %}
+        <div class="bc-chain-link">⬇️ Linked by Ethereum Block Hash</div>
+        <div class="bc-block bc-vote">
+            <div class="bc-block-header">
+                <span class="bc-block-num">Block #{{ block.index }}</span>
+                <span class="bc-block-type">
+                    <span class="event-tag">VoteCast</span>
+                </span>
+            </div>
+            <div class="bc-block-body">
+                <div class="bc-field">
+                    <span class="bc-field-label">Tx Hash:</span>
+                    <span class="bc-field-value hash-value" title="{{ block.hash }}">
+                        {{ block.hash[:36] }}...
+                    </span>
+                </div>
+                <div class="bc-field">
+                    <span class="bc-field-label">Timestamp:</span>
+                    <span class="bc-field-value">{{ block.timestamp[:19].replace('T',' ') if block.timestamp else '—' }}</span>
+                </div>
+                {% if block.data %}
+                <div class="bc-field">
+                    <span class="bc-field-label">Voter:</span>
+                    <span class="bc-field-value">{{ block.data.get('voter_name', 'N/A') }}</span>
+                </div>
+                <div class="bc-field">
+                    <span class="bc-field-label">Role:</span>
+                    <span class="bc-field-value">{{ block.data.get('role', 'N/A') }}</span>
+                </div>
+                <div class="bc-field">
+                    <span class="bc-field-label">Gas:</span>
+                    <span class="bc-field-value">21,000 wei</span>
+                </div>
+                {% endif %}
+                {% if chain_info and chain_info.network == 'sepolia' %}
+                <div class="bc-field">
+                    <a class="etherscan-badge"
+                       href="https://sepolia.etherscan.io/tx/{{ block.hash }}"
+                       target="_blank" rel="noopener">View on Etherscan ↗</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="empty-state" style="padding:60px;">
+        <div class="empty-icon">⛓️</div>
+        <h3>No on-chain events yet</h3>
+        <p>
+            {% if chain_info and not chain_info.connected %}
+                ⚠️ Not connected to blockchain. Check your Ganache / RPC settings.
+            {% else %}
+                Events will appear here after the first vote is cast.
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Validation panel -->
+    <div class="blockchain-validation" style="margin-top:24px;">
+        <h3>🔐 Ethereum Chain Validation</h3>
+        <div class="validation-info">
+            <p>
+                Every vote is stored as an immutable Ethereum transaction.
+                The smart contract rejects duplicate votes at the Solidity level.
+                All transactions are verifiable on-chain using the tx hash.
+            </p>
+            <div class="validation-result">
+                <span class="val-label">Chain Status:</span>
+                {% if chain_info and chain_info.connected and not chain_info.simulated %}
+                <span class="val-value valid">✅ LIVE — Connected to {{ chain_info.network | capitalize }} (Block #{{ chain_info.blockNumber }})</span>
+                {% elif chain_info and chain_info.simulated %}
+                <span class="val-value" style="color:#f39c12;">⚠️ SIMULATION MODE — Connect Ganache to go live</span>
+                {% else %}
+                <span class="val-value" style="color:#e74c3c;">❌ DISCONNECTED</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tab + '-tab').classList.add('active');
+    event.target.classList.add('active');
+}
+
+// Auto-refresh chain status every 15 seconds
+setInterval(() => {
+    fetch('/api/blockchain-status')
+        .then(r => r.json())
+        .then(data => {
+            // Update block number if visible
+            const blockEl = document.querySelector('.cs-value[data-block]');
+            if (blockEl && data.block_number) {
+                blockEl.textContent = '#' + data.block_number;
+            }
+        })
+        .catch(() => {});
+}, 15000);
+</script>
+{% endblock %}

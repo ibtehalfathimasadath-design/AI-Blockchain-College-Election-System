@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Election Results | College Election System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏆 Election Results</h1>
+    <p>Live vote counts and final election outcomes</p>
+    {% if announced %}
+    <div class="announced-banner">🎉 Official results have been announced!</div>
+    {% else %}
+    <div class="pending-banner">⏳ Results pending official announcement</div>
+    {% endif %}
+</div>
+
+{% if results_by_role %}
+    {% for role, candidates in results_by_role.items() %}
+    <div class="results-role-section">
+        <div class="results-role-header">
+            <h2>
+                {% if role == 'President' %}👑{% elif role == 'Vice President' %}🥈{% elif role == 'Secretary' %}📝{% elif role == 'Treasurer' %}💰{% else %}🏅{% endif %}
+                {{ role }}
+            </h2>
+        </div>
+        
+        <div class="results-candidates">
+            {% set max_votes = candidates[0].vote_count if candidates else 1 %}
+            {% set max_votes = max_votes if max_votes > 0 else 1 %}
+            
+            {% for i, candidate in candidates | enumerate %}
+            <div class="result-candidate-card {% if i == 0 and announced %}winner-card{% endif %}">
+                {% if i == 0 and announced %}
+                <div class="winner-ribbon">🏆 WINNER</div>
+                {% endif %}
+                
+                <div class="rc-rank">{{ i + 1 }}</div>
+                <div class="rc-avatar {% if i == 0 and announced %}winner-avatar{% endif %}">
+                    {{ candidate.name[0] | upper }}
+                </div>
+                <div class="rc-info">
+                    <h3>{{ candidate.name }}</h3>
+                    <p>{{ candidate.department }} · @{{ candidate.username }}</p>
+                </div>
+                <div class="rc-votes">
+                    <div class="vote-number">{{ candidate.vote_count }}</div>
+                    <div class="vote-label">votes</div>
+                </div>
+                <div class="rc-bar-wrap">
+                    <div class="rc-bar" style="width: {{ [(candidate.vote_count / max_votes * 100), 100] | min if max_votes > 0 else 0 }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h3>No Results Yet</h3>
+        <p>Election results will appear here once nominations are approved and voting begins.</p>
+        {% if current_user.is_authenticated and current_user.role != 'admin' %}
+        <a href="{{ url_for('verify_identity') }}" class="btn btn-primary">Cast Your Vote</a>
+        {% endif %}
+    </div>
+{% endif %}
+
+<!-- Auto-refresh notice -->
+<div class="results-footer">
+    <p>⛓️ All votes secured by blockchain</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * FIX 8: Poll /api/results/status every 10s instead of full page reload.
+ * When results are declared, update the banner and winner cards instantly.
+ */
+let resultsAnnounced = {{ 'true' if announced else 'false' }};
+
+function pollResultsStatus() {
+    if (resultsAnnounced) return; // already announced, stop polling
+
+    fetch('/api/results/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.announced && !resultsAnnounced) {
+                resultsAnnounced = true;
+                // FIX 8: Reload to show winner ribbons and updated banner
+                showResultsToast('🏆 Official results have been announced! Refreshing...');
+                setTimeout(() => location.reload(), 1500);
+            }
+        })
+        .catch(e => console.log('Results poll error:', e));
+}
+
+// Also refresh live vote counts every 15s (without full reload when not yet announced)
+function refreshLiveVotes() {
+    fetch('/api/live-stats')
+        .then(r => r.json())
+        .then(data => {
+            // Update vote counts in DOM if elements exist
+            data.forEach(item => {
+                const el = document.getElementById('rc-votes-' + item.id);
+                if (el) el.textContent = item.vote_count;
+            });
+        })
+        .catch(e => {});
+}
+
+function showResultsToast(msg) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;
+        background:#28a745;color:white;padding:14px 22px;border-radius:8px;
+        font-size:1rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+}
+
+// Start polling
+setInterval(pollResultsStatus, 10000);
+setInterval(refreshLiveVotes, 15000);
+</script>
+{% endblock %}

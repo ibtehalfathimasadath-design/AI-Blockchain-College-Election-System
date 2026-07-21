@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Vote Confirmed | College Election System{% endblock %}
+
+{% block extra_css %}
+<style>
+.etherscan-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #3498db;
+    font-size: 0.85rem;
+    text-decoration: none;
+    margin-top: 4px;
+}
+.etherscan-link:hover { text-decoration: underline; }
+.network-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.network-ganache  { background: #f39c12; color: #fff; }
+.network-sepolia  { background: #9b59b6; color: #fff; }
+.network-localhost { background: #27ae60; color: #fff; }
+.network-simulation { background: #95a5a6; color: #fff; }
+.tx-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee; flex-wrap:wrap; gap:6px; }
+.tx-label { font-size:0.82rem; color:#666; min-width:130px; }
+.tx-value { font-family:monospace; font-size:0.82rem; word-break:break-all; text-align:right; }
+.tx-value.success { color:#27ae60; font-weight:700; }
+.tx-value.hash    { color:#2980b9; }
+.multi-tx-list { list-style:none; padding:0; margin:0; }
+.multi-tx-list li { padding:6px 0; border-bottom:1px solid #f0f0f0; font-family:monospace; font-size:0.8rem; color:#2980b9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirmation-page">
+    <div class="confirmation-card">
+        <div class="confirmation-animation">
+            <div class="check-circle-big">✓</div>
+        </div>
+
+        <h1>Vote Successfully Cast!</h1>
+        <p class="confirmation-subtitle">Your vote is permanently recorded on the Ethereum blockchain</p>
+
+        {% if block %}
+        <!-- ── Real Ethereum Receipt ─────────────────────────────── -->
+        <div class="blockchain-receipt">
+            <h3>
+                ⛓️ Ethereum Transaction Receipt
+                {% if block.simulated %}
+                    <span class="network-badge network-simulation">Simulated</span>
+                {% else %}
+                    <span class="network-badge network-{{ block.network }}">{{ block.network }}</span>
+                {% endif %}
+            </h3>
+
+            <div class="receipt-grid">
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Transaction Hash</span>
+                    <span class="tx-value hash receipt-value">{{ block.hash }}</span>
+                </div>
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Block Number</span>
+                    <span class="tx-value receipt-value">#{{ block.index }}</span>
+                </div>
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Gas Used</span>
+                    <span class="tx-value receipt-value">{{ block.nonce | int }} wei</span>
+                </div>
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Timestamp</span>
+                    <span class="tx-value receipt-value">{{ block.timestamp[:19].replace('T',' ') }}</span>
+                </div>
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Status</span>
+                    <span class="tx-value success receipt-value">✅ Confirmed On-Chain</span>
+                </div>
+                <div class="receipt-row tx-row">
+                    <span class="tx-label receipt-label">Contract</span>
+                    <span class="tx-value hash receipt-value">
+                        {{ chain_info.contractAddress if chain_info else 'N/A' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Etherscan link for Sepolia -->
+            {% if block.network == 'sepolia' and not block.simulated %}
+            <a class="etherscan-link"
+               href="https://sepolia.etherscan.io/tx/{{ block.hash }}"
+               target="_blank" rel="noopener">
+                🔍 View on Sepolia Etherscan ↗
+            </a>
+            {% elif block.network == 'ganache' and not block.simulated %}
+            <p style="font-size:0.8rem;color:#888;margin-top:8px;">
+                🔍 View in Ganache GUI → Transactions tab → {{ block.hash[:20] }}...
+            </p>
+            {% endif %}
+
+            <!-- Emitted Events -->
+            {% if block.events %}
+            <div style="margin-top:16px;">
+                <h4 style="font-size:0.9rem;color:#555;">📋 Smart Contract Events Emitted</h4>
+                {% for ev in block.events %}
+                <div style="background:#f8f9fa;border-left:3px solid #3498db;padding:8px 12px;margin:6px 0;border-radius:4px;font-size:0.8rem;">
+                    <strong>{{ ev.event }}</strong>
+                    {% for k, v in ev.args.items() %}
+                    <span style="color:#666;margin-left:8px;">{{ k }}: <span style="color:#333;font-family:monospace;">{{ v }}</span></span>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Multiple TX hashes if voter voted for multiple roles -->
+        {% if all_tx_hashes and all_tx_hashes | length > 1 %}
+        <div class="blockchain-receipt" style="margin-top:16px;">
+            <h4>📦 All Role Transactions ({{ all_tx_hashes | length }} total)</h4>
+            <ul class="multi-tx-list">
+                {% for tx in all_tx_hashes %}
+                <li>{{ loop.index }}. {{ tx }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- Fallback if block object missing -->
+        <div class="blockchain-receipt">
+            <h3>⛓️ Blockchain Receipt</h3>
+            <div class="tx-row">
+                <span class="tx-label">Transaction Hash</span>
+                <span class="tx-value hash">{{ block_hash }}</span>
+            </div>
+            <div class="tx-row">
+                <span class="tx-label">Status</span>
+                <span class="tx-value success">✅ Confirmed</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- MetaMask-style confirmation box -->
+        <div class="metamask-simulation">
+            <div class="mm-header">
+                <span class="mm-icon">🦊</span>
+                <span class="mm-title">MetaMask — Transaction Confirmed</span>
+            </div>
+            <div class="mm-body">
+                <div class="mm-row">
+                    <span>From (Voter):</span>
+                    <span class="mm-address">
+                        {{ chain_info.account[:20] if chain_info and chain_info.account else '0x' + current_user.id|string + '...election' }}...
+                    </span>
+                </div>
+                <div class="mm-row">
+                    <span>To (Contract):</span>
+                    <span class="mm-address">
+                        {{ (chain_info.contractAddress[:20] + '...') if chain_info and chain_info.contractAddress else '0xElectionContract' }}
+                    </span>
+                </div>
+                <div class="mm-row">
+                    <span>Network:</span>
+                    <span>
+                        {% if chain_info %}
+                            {{ chain_info.network | capitalize }}
+                            (Chain ID: {{ chain_info.chainId }})
+                        {% else %}
+                            Ethereum
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="mm-row">
+                    <span>Gas Used:</span>
+                    <span>{{ block.nonce | int if block else 21000 }} wei</span>
+                </div>
+                <div class="mm-status">✅ Transaction Successful</div>
+            </div>
+        </div>
+
+        <div class="confirmation-actions">
+            <a href="{{ url_for('voter_dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+            <a href="{{ url_for('election_results') }}" class="btn btn-outline">View Live Results</a>
+        </div>
+
+        <div class="confirmation-note">
+            <p>🔒 Your vote is cryptographically secured by the Ethereum blockchain.
+               The transaction hash above is your immutable proof of participation.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Animate checkmark
+    const circle = document.querySelector('.check-circle-big');
+    if (circle) {
+        setTimeout(() => {
+            circle.style.transform = 'scale(1.2)';
+            setTimeout(() => { circle.style.transform = 'scale(1)'; }, 200);
+        }, 100);
+    }
+
+    // Copy tx hash on click
+    document.querySelectorAll('.tx-value.hash').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.title = 'Click to copy';
+        el.addEventListener('click', () => {
+            navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+                const orig = el.textContent;
+                el.textContent = '✅ Copied!';
+                setTimeout(() => { el.textContent = orig; }, 1500);
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

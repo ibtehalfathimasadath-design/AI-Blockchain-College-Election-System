@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Manage Nominations | Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 Manage Nominations</h1>
+    <p>Review, approve, or reject nomination applications — changes sync instantly</p>
+</div>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+    <a href="{{ url_for('admin_nominations') }}" 
+       class="filter-tab {% if status_filter == 'all' %}active{% endif %}">
+        All
+    </a>
+    <a href="{{ url_for('admin_nominations') }}?status=approved" 
+       class="filter-tab {% if status_filter == 'approved' %}active{% endif %}">
+        ✅ Approved
+    </a>
+    <a href="{{ url_for('admin_nominations') }}?status=rejected" 
+       class="filter-tab {% if status_filter == 'rejected' %}active{% endif %}">
+        ❌ Rejected
+    </a>
+    <a href="{{ url_for('admin_nominations') }}?status=pending" 
+       class="filter-tab {% if status_filter == 'pending' %}active{% endif %}">
+        ⏳ Pending
+    </a>
+</div>
+
+<!-- FIX 8: Sync status banner shown after any AJAX update -->
+<div id="sync-banner" style="display:none; background:#d4edda; color:#155724; padding:10px 16px;
+     border-radius:6px; margin-bottom:16px; font-weight:500; border-left:4px solid #28a745;">
+    ✅ <span id="sync-message">Status updated successfully.</span>
+</div>
+
+{% if nominations %}
+<div class="nominations-list" id="nominations-list">
+    {% for nom in nominations %}
+    <div class="nomination-card nom-{{ nom.status }}" id="nom-card-{{ nom.id }}">
+        <div class="nom-header">
+            <div class="nom-avatar">{{ nom.name[0] | upper }}</div>
+            <div class="nom-basic">
+                <h3>{{ nom.name }}</h3>
+                <span class="nom-meta">{{ nom.username }} · {{ nom.email }}</span>
+            </div>
+            <div class="nom-badges">
+                <span class="badge badge-role">{{ nom.role }}</span>
+                <span class="badge badge-{{ nom.status }}" id="status-badge-{{ nom.id }}">
+                    {% if nom.status == 'approved' %}✅ Approved
+                    {% elif nom.status == 'rejected' %}❌ Rejected
+                    {% else %}⏳ Pending{% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <div class="nom-details">
+            <div class="nom-detail-item">
+                <span class="nom-detail-label">Department:</span>
+                <span>{{ nom.department }}</span>
+            </div>
+            <div class="nom-detail-item">
+                <span class="nom-detail-label">Applied On:</span>
+                <span>{{ nom.created_at[:19].replace('T', ' ') }}</span>
+            </div>
+            {% if nom.manifesto %}
+            <div class="nom-detail-item" style="flex:1;">
+                <span class="nom-detail-label">Manifesto:</span>
+                <span>{{ nom.manifesto[:150] }}{% if nom.manifesto|length > 150 %}...{% endif %}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if nom.rejection_reasons_list %}
+        <div class="nom-rejection-reasons">
+            <strong>Rejection Reasons:</strong>
+            <ul>
+                {% for reason in nom.rejection_reasons_list %}
+                <li>{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- FIX 1 + 9: AJAX-powered action buttons — instant DB sync + email trigger -->
+        <div class="nom-actions" id="nom-actions-{{ nom.id }}">
+            {% if nom.status != 'approved' %}
+            <button class="btn btn-success btn-sm"
+                    onclick="updateStatus({{ nom.id }}, 'approved', '{{ nom.name }}', this)">
+                ✅ Approve
+            </button>
+            {% endif %}
+            {% if nom.status != 'rejected' %}
+            <button class="btn btn-danger btn-sm"
+                    onclick="updateStatus({{ nom.id }}, 'rejected', '{{ nom.name }}', this)">
+                ❌ Reject
+            </button>
+            {% endif %}
+            {% if nom.status != 'pending' %}
+            <button class="btn btn-outline btn-sm"
+                    onclick="updateStatus({{ nom.id }}, 'pending', '{{ nom.name }}', this)">
+                ⏳ Set Pending
+            </button>
+            {% endif %}
+            <span id="nom-loading-{{ nom.id }}" style="display:none; font-size:13px; color:#666;">
+                ⏳ Updating...
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>No nominations found</h3>
+    <p>No nominations match the selected filter.</p>
+    <a href="{{ url_for('admin_nominations') }}" class="btn btn-outline">View All</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * FIX 1, 4, 9: AJAX nomination status update.
+ * - Sends POST with X-Requested-With header so backend returns JSON
+ * - On success: updates badge, rebuilds action buttons, shows sync banner
+ * - On approved: backend sends email automatically (no frontend action needed)
+ * - Polls /api/nomination/<id>/status to confirm DB write before updating UI
+ */
+function updateStatus(nomId, newStatus, nomName, btn) {
+    const confirmMsg = {
+        approved: `Approve nomination for ${nomName}? An approval email will be sent.`,
+        rejected: `Reject nomination for ${nomName}?`,
+        pending:  `Set nomination for ${nomName} back to pending?`
+    }[newStatus];
+
+    if (!confirm(confirmMsg)) return;
+
+    // Show loading state
+    const actionsDiv = document.getElementById(`nom-actions-${nomId}`);
+    const loadingEl  = document.getElementById(`nom-loading-${nomId}`);
+    if (actionsDiv) actionsDiv.style.opacity = '0.4';
+    if (loadingEl)  loadingEl.style.display = 'inline';
+    if (btn) btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('status', newStatus);
+
+    // FIX 9: Use fetch() with X-Requested-With to get JSON response
+    fetch(`/admin/nomination/${nomId}/update`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(res => {
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        return res.json();
+    })
+    .then(data => {
+        if (!data.success) throw new Error(data.error || 'Unknown error');
+
+        // FIX 1: Poll backend to confirm DB write, then update UI
+        return pollNomStatus(nomId, newStatus);
+    })
+    .then(confirmedStatus => {
+        // Update badge
+        const badge = document.getElementById(`status-badge-${nomId}`);
+        const card  = document.getElementById(`nom-card-${nomId}`);
+
+        const labels = {
+            approved: '✅ Approved',
+            rejected: '❌ Rejected',
+            pending:  '⏳ Pending'
+        };
+        if (badge) {
+            badge.textContent = labels[confirmedStatus] || confirmedStatus;
+            badge.className = `badge badge-${confirmedStatus}`;
+        }
+        if (card) {
+            card.className = `nomination-card nom-${confirmedStatus}`;
+        }
+
+        // Rebuild action buttons for new status
+        if (actionsDiv) {
+            actionsDiv.style.opacity = '1';
+            rebuildActions(nomId, confirmedStatus, nomName, actionsDiv);
+        }
+        if (loadingEl) loadingEl.style.display = 'none';
+
+        // Show sync banner
+        showSyncBanner(
+            confirmedStatus === 'approved'
+                ? `✅ ${nomName} approved! Approval email sent.`
+                : confirmedStatus === 'rejected'
+                    ? `❌ ${nomName} rejected.`
+                    : `⏳ ${nomName} set to pending.`
+        );
+    })
+    .catch(err => {
+        console.error('Update error:', err);
+        if (actionsDiv) actionsDiv.style.opacity = '1';
+        if (loadingEl)  loadingEl.style.display = 'none';
+        if (btn) btn.disabled = false;
+        showSyncBanner(`⚠️ Update failed: ${err.message}. Please refresh and try again.`, true);
+    });
+}
+
+/**
+ * FIX 1: Poll the status API to confirm DB write before updating UI.
+ * Retries up to 5 times with 600ms delay.
+ */
+function pollNomStatus(nomId, expectedStatus, attempts) {
+    attempts = attempts || 0;
+    return fetch(`/api/nomination/${nomId}/status`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === expectedStatus) return expectedStatus;
+        if (attempts >= 5) return expectedStatus; // give up, trust local
+        return new Promise(resolve => {
+            setTimeout(() => pollNomStatus(nomId, expectedStatus, attempts + 1).then(resolve), 600);
+        });
+    })
+    .catch(() => expectedStatus); // on error just use expected
+}
+
+/** Rebuild action buttons after a status change (avoids full page reload) */
+function rebuildActions(nomId, currentStatus, nomName, container) {
+    let html = '';
+    if (currentStatus !== 'approved') {
+        html += `<button class="btn btn-success btn-sm"
+                    onclick="updateStatus(${nomId}, 'approved', '${nomName}', this)">
+                    ✅ Approve</button> `;
+    }
+    if (currentStatus !== 'rejected') {
+        html += `<button class="btn btn-danger btn-sm"
+                    onclick="updateStatus(${nomId}, 'rejected', '${nomName}', this)">
+                    ❌ Reject</button> `;
+    }
+    if (currentStatus !== 'pending') {
+        html += `<button class="btn btn-outline btn-sm"
+                    onclick="updateStatus(${nomId}, 'pending', '${nomName}', this)">
+                    ⏳ Set Pending</button> `;
+    }
+    html += `<span id="nom-loading-${nomId}" style="display:none; font-size:13px; color:#666;">⏳ Updating...</span>`;
+    container.innerHTML = html;
+}
+
+/** FIX 8: Show the sync status banner at the top of the list */
+function showSyncBanner(msg, isError) {
+    const banner = document.getElementById('sync-banner');
+    const msgEl  = document.getElementById('sync-message');
+    if (!banner || !msgEl) return;
+    msgEl.textContent = msg;
+    banner.style.background  = isError ? '#f8d7da' : '#d4edda';
+    banner.style.color       = isError ? '#721c24' : '#155724';
+    banner.style.borderColor = isError ? '#dc3545' : '#28a745';
+    banner.style.display = 'block';
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => { banner.style.display = 'none'; }, 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Cast Your Vote | College Election System{% endblock %}
+
+{% block extra_css %}
+<style>
+.blockchain-info-box {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #0f3460;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    color: #e8e8e8;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.bib-icon { font-size: 1.8rem; }
+.bib-text h4 { margin: 0 0 4px; font-size: 0.95rem; color: #fff; }
+.bib-text p  { margin: 0; font-size: 0.78rem; color: #aaa; }
+.bib-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    background: #27ae60;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🗳️ Cast Your Vote</h1>
+    <p>Select your preferred candidates. Each vote is permanently recorded on the Ethereum blockchain.</p>
+</div>
+
+<!-- Blockchain info banner -->
+<div class="blockchain-info-box">
+    <span class="bib-icon">⛓️</span>
+    <div class="bib-text">
+        <h4>Ethereum Smart Contract Voting</h4>
+        <p>Your votes are submitted as real blockchain transactions — immutable, verifiable, tamper-proof.</p>
+    </div>
+    <span class="bib-badge" id="chain-live-badge">Loading…</span>
+</div>
+
+<!-- MetaMask widget will be injected here by metamask.js -->
+<div id="metamask-widget-anchor"></div>
+
+<form method="POST" action="{{ url_for('cast_vote') }}" id="voteForm">
+    {{ form.hidden_tag() if form is defined else '' }}
+
+    {% for role, candidates in candidates_by_role.items() %}
+    <div class="vote-section">
+        <h3>{{ role }}</h3>
+        <div class="candidates-grid">
+            {% for candidate in candidates %}
+            <label class="candidate-card">
+                <input type="radio"
+                       name="vote_{{ role.lower().replace(' ', '_') }}"
+                       value="{{ candidate.id }}"
+                       required>
+                <div class="candidate-info">
+                    <div class="candidate-avatar">
+                        {% if candidate.photo %}
+                            <img src="{{ url_for('static', filename='uploads/' + candidate.photo) }}"
+                                 alt="{{ candidate.name }}">
+                        {% else %}
+                            <div class="avatar-placeholder">{{ candidate.name[0] }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="candidate-details">
+                        <h4>{{ candidate.name }}</h4>
+                        <p>{{ candidate.department }}</p>
+                    </div>
+                </div>
+                <div class="candidate-select-indicator">✓</div>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Hidden fields populated by metamask.js -->
+    <input type="hidden" id="wallet_address"   name="wallet_address"   value="">
+    <input type="hidden" id="wallet_signature" name="wallet_signature" value="">
+
+    <div class="vote-submit-section">
+        <div class="vote-warning">
+            ⚠️ <strong>Warning:</strong> Your vote is final and cannot be changed once submitted.
+            It will be permanently recorded on the Ethereum blockchain.
+        </div>
+        <button type="submit" class="btn btn-primary btn-large" id="submitVoteBtn">
+            🗳️ Submit Vote to Blockchain
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<!-- ethers.js v6 CDN — required for MetaMask integration -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+
+<!-- Pass contract address from Flask to JavaScript -->
+<script>
+    window.ELECTION_CONTRACT_ADDRESS = "{{ contract_address | default('') }}";
+</script>
+
+<!-- MetaMask integration -->
+<script src="{{ url_for('static', filename='js/metamask.js') }}"></script>
+
+<script>
+// Poll the Flask /api/blockchain-status endpoint and update the live badge
+fetch('/api/blockchain-status')
+    .then(r => r.json())
+    .then(data => {
+        const badge = document.getElementById('chain-live-badge');
+        if (data.connected && !data.simulated) {
+            badge.textContent = '🟢 LIVE — ' + data.network.toUpperCase() + ' #' + data.block_number;
+            badge.style.background = '#27ae60';
+        } else if (data.simulated) {
+            badge.textContent = '🟡 SIMULATION MODE';
+            badge.style.background = '#f39c12';
+        } else {
+            badge.textContent = '🔴 OFFLINE';
+            badge.style.background = '#e74c3c';
+        }
+    })
+    .catch(() => {
+        document.getElementById('chain-live-badge').textContent = '⚠️ Status Unknown';
+    });
+
+// Show spinner on submit
+document.getElementById('voteForm')?.addEventListener('submit', function () {
+    const btn = document.getElementById('submitVoteBtn');
+    if (btn) {
+        btn.textContent = '⏳ Submitting to Ethereum…';
+        btn.disabled = true;
+    }
+});
+</script>
+{% endblock %}

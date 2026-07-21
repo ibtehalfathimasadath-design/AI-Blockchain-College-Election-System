@@ -1,0 +1,37 @@
+# Core Flask
+Flask==3.0.3
+Flask-Login==0.6.3
+Werkzeug==3.0.3
+
+# Image & PDF processing
+Pillow==10.4.0
+pymupdf==1.24.5
+pdf2image==1.17.0  # optional fallback, requires poppler-utils
+opencv-python-headless==4.10.0.84
+
+# OCR engines
+easyocr==1.7.2
+pytesseract==0.3.13
+
+# Claude Vision API (Strategy 2 — alternative to OCR for scanned PDFs)
+# No extra package needed — uses built-in urllib.request.
+# Set ANTHROPIC_API_KEY environment variable to enable.
+# Uses model: claude-sonnet-4-20250514
+
+# Numeric / ML
+numpy==1.26.4
+
+# Database & backend
+firebase-admin==6.5.0
+
+# Data export
+pandas==2.2.2
+openpyxl==3.1.2
+
+# System packages required (Ubuntu/Debian):
+# sudo apt-get install -y tesseract-ocr libgl1-mesa-glx
+# poppler-utils is optional (only needed if PyMuPDF fails)
+
+# Blockchain
+web3==6.15.1
+python-dotenv==1.0.1

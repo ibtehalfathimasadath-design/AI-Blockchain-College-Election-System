@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Verify Identity | College Election System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔐 Identity Verification</h1>
+    <p>Step 1 of 2: Verify your identity to proceed with voting</p>
+</div>
+
+<div class="progress-steps">
+    <div class="progress-step active">
+        <div class="ps-circle">1</div>
+        <span>Identity Verification</span>
+    </div>
+    <div class="progress-line"></div>
+    <div class="progress-step">
+        <div class="ps-circle">2</div>
+        <span>Cast Vote</span>
+    </div>
+    <div class="progress-line"></div>
+    <div class="progress-step">
+        <div class="ps-circle">3</div>
+        <span>Blockchain Confirmation</span>
+    </div>
+</div>
+
+<div class="two-col-layout">
+    <div class="form-panel">
+        <div class="panel-header">
+            <h2>📄 Upload Your ID Card</h2>
+            <p>Upload your student ID card to verify your identity and proceed to vote</p>
+        </div>
+
+        <form action="{{ url_for('verify_identity') }}" method="POST"
+              enctype="multipart/form-data" id="verifyForm" novalidate>
+
+            <!-- Hidden field for captured image data -->
+            <input type="hidden" id="captured_image_data" name="captured_image_data" value="">
+
+            <!-- ID Card Upload -->
+            <div class="form-group upload-group">
+                <label for="id_card">🪪 Student ID Card <span class="required">*</span></label>
+                <div class="file-upload-box" id="idCardBox" onclick="document.getElementById('id_card').click()">
+                    <div class="upload-icon">📤</div>
+                    <div class="upload-text">Click to upload ID Card</div>
+                    <div class="upload-hint">JPG or PNG only (Max 16MB)</div>
+                    <div class="upload-preview" id="idCardPreview"></div>
+                </div>
+                <input type="file" id="id_card" name="id_card"
+                       accept=".jpg,.jpeg,.png" required
+                       onchange="previewFile(this, 'idCardPreview', 'idCardBox')"
+                       style="display:none;">
+                <span class="field-error" id="idCardError"></span>
+                <div class="field-hint">
+                    <strong>AI OCR will extract:</strong> Name, ID Number, Year, Department
+                </div>
+            </div>
+
+            <!-- Iris Live Camera Capture -->
+            <div class="form-group camera-group">
+                <label>👁️ Iris Capture <span class="required">*</span></label>
+
+                <!-- Hidden field to store base64 captured iris image -->
+                <input type="hidden" id="iris_image_data" name="iris_image_data" value="">
+
+                <div class="camera-container" id="irisContainer">
+
+                    <!-- Camera Preview Area -->
+                    <div class="camera-preview-area" id="irisCameraPreviewArea">
+                        <video id="irisStream" autoplay playsinline
+                               style="width:100%; border-radius:8px; display:none;"></video>
+                        <canvas id="irisCanvas" style="display:none;"></canvas>
+                        <div id="irisPlaceholder" class="camera-placeholder">
+                            <div class="camera-placeholder-icon">👁️</div>
+                            <p>Camera not started</p>
+                            <p style="font-size:0.85em; color:#888;">Hold your eye close to the camera</p>
+                        </div>
+                        <img id="irisCapturedPreview" src="" alt="Captured iris"
+                             style="width:100%; border-radius:8px; display:none;">
+                    </div>
+
+                    <!-- Camera Controls -->
+                    <div class="camera-controls">
+                        <button type="button" class="btn btn-outline" id="irisStartBtn"
+                                onclick="startIrisCamera()">
+                            🎥 Start Camera
+                        </button>
+                        <button type="button" class="btn btn-primary" id="irisCaptureBtn"
+                                onclick="captureIris()" style="display:none;">
+                            📸 Capture Iris
+                        </button>
+                        <button type="button" class="btn btn-outline" id="irisRetakeBtn"
+                                onclick="retakeIris()" style="display:none;">
+                            🔄 Retake
+                        </button>
+                    </div>
+
+                    <!-- Status -->
+                    <div id="irisStatus" class="camera-status"></div>
+
+                    <div class="field-hint" style="margin-top:8px;">
+                        <strong>Tip:</strong> Hold your eye close to the camera in good lighting for a clear iris capture
+                    </div>
+                </div>
+                <span class="field-error" id="irisError"></span>
+            </div>
+
+            <!-- Identity Verification Notice (Camera removed) -->
+            <div class="form-group">
+                <div class="form-notice" style="background:#e8f5e9; border:1px solid #4caf50; border-radius:8px; padding:16px; margin-top:8px;">
+                    <span class="notice-icon">✅</span>
+                    <span><strong>Step 3:</strong> Your identity will be verified using your uploaded ID card, iris photo, and registered account information.</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full btn-lg" id="verifyBtn">
+                🔍 Verify Identity & Proceed to Vote
+            </button>
+        </form>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+        <div class="info-box">
+            <h3>🤖 How Verification Works</h3>
+            <div class="ai-step">
+                <span class="ai-step-icon">📄</span>
+                <div>
+                    <strong>Step 1 — Upload ID Card</strong>
+                    <p>Upload your college ID card as a JPG or PNG image</p>
+                </div>
+            </div>
+            <div class="ai-step">
+                <span class="ai-step-icon">🔍</span>
+                <div>
+                    <strong>Step 2 — OCR Extraction</strong>
+                    <p>AI reads your ID card and extracts Name, Roll Number, Year, and Department</p>
+                </div>
+            </div>
+            <div class="ai-step">
+                <span class="ai-step-icon">🔐</span>
+                <div>
+                    <strong>Step 3 — Iris Verification</strong>
+                    <p>Your uploaded iris photo is stored securely as part of your identity record</p>
+                </div>
+            </div>
+            <div class="ai-step">
+                <span class="ai-step-icon">✅</span>
+                <div>
+                    <strong>Step 4 — Identity Confirmed</strong>
+                    <p>Verified successfully → proceed to cast your vote securely</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box" style="margin-top: 20px;">
+            <h3>📋 Requirements</h3>
+            <ul class="requirements-list">
+                <li>✅ Clear, readable ID card image (JPG/PNG)</li>
+                <li>✅ Clear close-up iris/eye photo (JPG/PNG)</li>
+                <li>✅ Both images must be well-lit and sharp</li>
+                <li>✅ Max file size: 16MB each</li>
+                <li>❌ Blurry or damaged documents</li>
+                <li>❌ Someone else's ID card or iris</li>
+                <li>❌ PDF files (JPG/PNG images only)</li>
+            </ul>
+        </div>
+
+        {% if ocr_result %}
+        <div class="info-box ocr-result-box" style="margin-top: 20px;">
+            <h3>🔍 Last OCR Extraction Result</h3>
+            <table class="ocr-table">
+                {% for key, value in ocr_result.items() %}
+                    {% if key != 'raw_text' and value %}
+                    <tr>
+                        <td><strong>{{ key | title }}</strong></td>
+                        <td>{{ value }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── ID Card preview ──────────────────────────────────────────────────────────
+function previewFile(input, previewId, boxId) {
+    const file = input.files[0];
+    if (!file) return;
+    const preview = document.getElementById(previewId);
+    const box = document.getElementById(boxId);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:100%; max-height:200px; border-radius:6px; margin-top:8px;">';
+        box.querySelector('.upload-text').textContent = file.name;
+        box.querySelector('.upload-hint').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    };
+    reader.readAsDataURL(file);
+}
+
+// ── Iris Camera Logic ────────────────────────────────────────────────────────
+let irisStream = null;
+
+async function startIrisCamera() {
+    const statusEl = document.getElementById('irisStatus');
+    statusEl.textContent = '⏳ Starting camera...';
+    statusEl.className = 'camera-status';
+
+    try {
+        irisStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+
+        const video = document.getElementById('irisStream');
+        video.srcObject = irisStream;
+        video.style.display = 'block';
+
+        document.getElementById('irisPlaceholder').style.display = 'none';
+        document.getElementById('irisCapturedPreview').style.display = 'none';
+        document.getElementById('irisStartBtn').style.display = 'none';
+        document.getElementById('irisCaptureBtn').style.display = 'inline-block';
+        document.getElementById('irisRetakeBtn').style.display = 'none';
+
+        statusEl.textContent = '🟢 Camera active — hold your eye close to the lens';
+        statusEl.className = 'camera-status status-ok';
+
+    } catch (err) {
+        statusEl.textContent = '❌ Camera access denied: ' + err.message;
+        statusEl.className = 'camera-status status-error';
+        console.error('Iris camera error:', err);
+    }
+}
+
+function captureIris() {
+    const video = document.getElementById('irisStream');
+    const canvas = document.getElementById('irisCanvas');
+    const preview = document.getElementById('irisCapturedPreview');
+    const statusEl = document.getElementById('irisStatus');
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataURL = canvas.toDataURL('image/jpeg', 0.92);
+
+    // Store in hidden field
+    document.getElementById('iris_image_data').value = dataURL;
+
+    // Show captured preview
+    preview.src = dataURL;
+    preview.style.display = 'block';
+    video.style.display = 'none';
+
+    // Stop camera stream
+    if (irisStream) {
+        irisStream.getTracks().forEach(t => t.stop());
+        irisStream = null;
+    }
+
+    document.getElementById('irisCaptureBtn').style.display = 'none';
+    document.getElementById('irisRetakeBtn').style.display = 'inline-block';
+    document.getElementById('irisStartBtn').style.display = 'none';
+
+    statusEl.textContent = '✅ Iris captured! Click Retake to redo.';
+    statusEl.className = 'camera-status status-ok';
+    document.getElementById('irisError').textContent = '';
+}
+
+function retakeIris() {
+    const preview = document.getElementById('irisCapturedPreview');
+    preview.style.display = 'none';
+    preview.src = '';
+
+    document.getElementById('iris_image_data').value = '';
+    document.getElementById('irisPlaceholder').style.display = 'flex';
+    document.getElementById('irisStartBtn').style.display = 'inline-block';
+    document.getElementById('irisCaptureBtn').style.display = 'none';
+    document.getElementById('irisRetakeBtn').style.display = 'none';
+
+    const statusEl = document.getElementById('irisStatus');
+    statusEl.textContent = '';
+    statusEl.className = 'camera-status';
+}
+
+// ── Form validation before submit ────────────────────────────────────────────
+document.getElementById('verifyForm').addEventListener('submit', function(e) {
+    let valid = true;
+
+    // Check ID card uploaded
+    const idCard = document.getElementById('id_card');
+    if (!idCard || !idCard.files || idCard.files.length === 0) {
+        document.getElementById('idCardError').textContent = 'Please upload your ID card.';
+        valid = false;
+    } else {
+        document.getElementById('idCardError').textContent = '';
+    }
+
+    // Check iris captured
+    const irisData = document.getElementById('iris_image_data').value;
+    if (!irisData || irisData.trim() === '') {
+        document.getElementById('irisError').textContent = 'Please capture your iris using the camera.';
+        valid = false;
+    } else {
+        document.getElementById('irisError').textContent = '';
+    }
+
+    if (!valid) {
+        e.preventDefault();
+        return;
+    }
+
+    const btn = document.getElementById('verifyBtn');
+    btn.textContent = '⏳ Verifying...';
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

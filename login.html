@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Login | College Election System{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">🔑</div>
+            <h2>Welcome Back</h2>
+            <p>Sign in to access the election portal</p>
+        </div>
+        
+        <form action="{{ url_for('login') }}" method="POST" class="auth-form" id="loginForm" novalidate>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-icon-wrapper">
+                    <span class="input-icon">👤</span>
+                    <input type="text" id="username" name="username" 
+                           placeholder="Enter your username" 
+                           required minlength="3" 
+                           autocomplete="username">
+                </div>
+                <span class="field-error" id="usernameError"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-icon-wrapper">
+                    <span class="input-icon">🔒</span>
+                    <input type="password" id="password" name="password" 
+                           placeholder="Enter your password"
+                           required minlength="6"
+                           autocomplete="current-password">
+                    <button type="button" class="toggle-password" onclick="togglePassword('password', this)">👁️</button>
+                </div>
+                <span class="field-error" id="passwordError"></span>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+                Login
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    let valid = true;
+    
+    const username = document.getElementById('username');
+    const password = document.getElementById('password');
+    
+    // Clear previous errors
+    document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+    document.querySelectorAll('input').forEach(el => el.classList.remove('input-error'));
+    
+    if (!username.value.trim() || username.value.trim().length < 3) {
+        document.getElementById('usernameError').textContent = 'Username must be at least 3 characters';
+        username.classList.add('input-error');
+        valid = false;
+    }
+    
+    if (!password.value || password.value.length < 6) {
+        document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
+        password.classList.add('input-error');
+        valid = false;
+    }
+    
+    if (!valid) {
+        e.preventDefault();
+    } else {
+        document.getElementById('loginBtn').textContent = 'Signing in...';
+        document.getElementById('loginBtn').disabled = true;
+    }
+});
+</script>
+{% endblock %}

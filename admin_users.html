@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Users Database | Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>👥 Users Database</h1>
+    <p>All registered users in the system</p>
+</div>
+
+<div class="admin-action-bar" style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+    <a href="{{ url_for('export_users') }}" class="btn btn-primary">📥 Export to Excel</a>
+    <form action="{{ url_for('clean_users') }}" method="POST" style="display:inline;"
+          onsubmit="return confirm('⚠️ This will DELETE all voter accounts and their votes. Admin accounts are kept. Are you sure?')">
+        <button type="submit" class="btn btn-outline" style="border-color:#e74c3c;color:#e74c3c;">🧹 Clear All Voters</button>
+    </form>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">← Back to Dashboard</a>
+</div>
+
+<div class="nominations-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Course</th>
+                <th>Year</th>
+                <th>Semester</th>
+                <th>Registered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.full_name or '-' }}</td>
+                <td>{{ u.email }}</td>
+                <td><span class="badge badge-{{ u.role }}">{{ u.role | title }}</span></td>
+                <td>{{ u.course or '-' }}</td>
+                <td>{{ u.year or '-' }}</td>
+                <td>{{ u.semester or '-' }}</td>
+                <td>{{ u.created_at | fmt_datetime }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" style="text-align:center; padding:20px;">No users found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

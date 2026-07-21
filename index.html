@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Home | College Election System{% endblock %}
+
+{% block content %}
+<!-- HERO SECTION -->
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">🔐 AI-Powered & Blockchain Secured</div>
+        <h1>College Election System</h1>
+        <p class="hero-subtitle">
+            A fully automated, secure, and transparent voting platform powered by 
+            <strong>AI</strong>, <strong>OCR</strong>, <strong>Iris Recognition</strong>, 
+            and <strong>Blockchain Technology</strong>
+        </p>
+        <div class="hero-actions">
+            {% if current_user.is_authenticated %}
+                {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary btn-lg">Admin Dashboard</a>
+                {% else %}
+                    <a href="{{ url_for('verify_identity') }}" class="btn btn-primary btn-lg">🗳️ Vote Now</a>
+                    <a href="{{ url_for('apply_nomination') }}" class="btn btn-outline btn-lg">📋 Apply as Candidate</a>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">Get Started</a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline btn-lg">Login</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="hero-card">
+            <div class="hero-icon">🗳️</div>
+            <h3>Secure Voting</h3>
+            <p>Blockchain-backed votes</p>
+        </div>
+        <div class="hero-card">
+            <div class="hero-icon">🤖</div>
+            <h3>AI Verification</h3>
+            <p>OCR + Iris Recognition</p>
+        </div>
+        <div class="hero-card">
+            <div class="hero-icon">📊</div>
+            <h3>Live Dashboard</h3>
+            <p>Real-time results</p>
+        </div>
+    </div>
+</section>
+
+<!-- STATS BAR -->
+<section class="stats-bar">
+    <div class="stat-item">
+        <span class="stat-number" data-target="{{ stats.total_votes }}">{{ stats.total_votes }}</span>
+        <span class="stat-label">Votes Cast</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+        <span class="stat-number" data-target="{{ stats.total_nominations }}">{{ stats.total_nominations }}</span>
+        <span class="stat-label">Nominations Received</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+        <span class="stat-number" data-target="{{ stats.approved_nominations }}">{{ stats.approved_nominations }}</span>
+        <span class="stat-label">Approved Candidates</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+        <span class="stat-number">SHA-256</span>
+        <span class="stat-label">Blockchain Secured</span>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section how-it-works">
+    <div class="section-header">
+        <h2>How It Works</h2>
+        <p>Our 3-step automated process ensures fair and secure elections</p>
+    </div>
+    
+    <div class="steps-grid">
+        <!-- Nomination Flow -->
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <div class="step-icon">📋</div>
+            <h3>Nomination Verification</h3>
+            <div class="step-details">
+                <div class="step-detail">
+                    <span class="detail-icon">📄</span>
+                    <span>Upload ID Card, Fee Receipt & Result Sheet</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">🔍</span>
+                    <span>AI OCR extracts and validates document data</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">✅</span>
+                    <span>System auto-checks eligibility (year, result pass)</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">📧</span>
+                    <span>Automated email confirmation sent</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voting Flow -->
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <div class="step-icon">🗳️</div>
+            <h3>Secure Voting</h3>
+            <div class="step-details">
+                <div class="step-detail">
+                    <span class="detail-icon">🪪</span>
+                    <span>Voter uploads ID Card for OCR verification</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">📷</span>
+                    <span>Live Iris compared with ID card photo</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">🗳️</span>
+                    <span>Identity verified → Vote cast</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">⛓️</span>
+                    <span>Vote stored on blockchain permanently</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Flow -->
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <div class="step-icon">🏆</div>
+            <h3>Transparent Results</h3>
+            <div class="step-details">
+                <div class="step-detail">
+                    <span class="detail-icon">📊</span>
+                    <span>Admin monitors live vote count dashboard</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">🔗</span>
+                    <span>All votes verifiable via blockchain hash</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">🏆</span>
+                    <span>Winner announced with one click</span>
+                </div>
+                <div class="step-detail">
+                    <span class="detail-icon">📧</span>
+                    <span>Auto email sent to all participants</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TECHNOLOGY SECTION -->
+<section class="section tech-section">
+    <div class="section-header">
+        <h2>Technology Stack</h2>
+        <p>Built with cutting-edge AI and security technologies</p>
+    </div>
+    
+    <div class="tech-grid">
+        <div class="tech-card">
+            <div class="tech-icon">🤖</div>
+            <h4>EasyOCR</h4>
+            <p>Extracts text from ID cards, fee receipts, and result sheets with high accuracy</p>
+        </div>
+        <div class="tech-card">
+            <div class="tech-icon">👁️</div>
+            <h4>Iris Recognition</h4>
+            <p>Compares ID card face with live Iris to prevent impersonation</p>
+        </div>
+        <div class="tech-card">
+            <div class="tech-icon">⛓️</div>
+            <h4>Blockchain</h4>
+            <p>SHA-256 chained blocks store votes immutably. Any tampering is instantly detected</p>
+        </div>
+        <div class="tech-card">
+            <div class="tech-icon">🐍</div>
+            <h4>Python Flask</h4>
+            <p>Lightweight backend with SQLite database for fast and reliable performance</p>
+        </div>
+        <div class="tech-card">
+            <div class="tech-icon">📧</div>
+            <h4>SMTP Email</h4>
+            <p>Automated email notifications for nominations results and winner announcements</p>
+        </div>
+        <div class="tech-card">
+            <div class="tech-icon">🔐</div>
+            <h4>Secure Auth</h4>
+            <p>Werkzeug password hashing + Flask-Login session management</p>
+        </div>
+    </div>
+</section>
+
+<!-- QUICK LINKS -->
+<section class="section quick-links-section">
+    <div class="section-header">
+        <h2>Quick Access</h2>
+    </div>
+    <div class="quick-links-grid">
+        {% if not current_user.is_authenticated %}
+        <a href="{{ url_for('register') }}" class="quick-link-card">
+            <span class="ql-icon">📝</span>
+            <span>Register as Voter</span>
+            <span class="ql-arrow">→</span>
+        </a>
+        <a href="{{ url_for('login') }}" class="quick-link-card">
+            <span class="ql-icon">🔑</span>
+            <span>Login</span>
+            <span class="ql-arrow">→</span>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('election_results') }}" class="quick-link-card">
+            <span class="ql-icon">📊</span>
+            <span>View Election Results</span>
+            <span class="ql-arrow">→</span>
+        </a>
+        {% if current_user.is_authenticated and current_user.role != 'admin' %}
+        <a href="{{ url_for('apply_nomination') }}" class="quick-link-card">
+            <span class="ql-icon">🏅</span>
+            <span>Apply for Candidacy</span>
+            <span class="ql-arrow">→</span>
+        </a>
+        <a href="{{ url_for('verify_identity') }}" class="quick-link-card">
+            <span class="ql-icon">🗳️</span>
+            <span>Cast Your Vote</span>
+            <span class="ql-arrow">→</span>
+        </a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

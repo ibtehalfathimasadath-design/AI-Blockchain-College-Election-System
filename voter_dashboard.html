@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Voter Dashboard | College Election System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="dash-welcome">
+        <!-- FIX: Use display_name passed from view, not raw session username -->
+        <h1>Welcome, {{ display_name }}! 👋</h1>
+        <p>College Election Portal — Your vote matters</p>
+    </div>
+    <div class="dash-status">
+        {% if has_voted %}
+            <div class="status-badge status-voted">✅ You have voted</div>
+        {% else %}
+            <div class="status-badge status-not-voted">🗳️ You haven't voted yet</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Action Cards -->
+<div class="action-cards-grid">
+    <div class="action-card {% if has_voted %}action-card-disabled{% endif %}">
+        <div class="action-card-icon">🗳️</div>
+        <h3>Cast Your Vote</h3>
+        <p>Verify identity and cast your vote securely</p>
+        {% if has_voted %}
+            <span class="btn btn-secondary btn-full" style="cursor:not-allowed;">Already Voted</span>
+        {% else %}
+            <a href="{{ url_for('verify_identity') }}" class="btn btn-primary btn-full">Vote Now</a>
+        {% endif %}
+    </div>
+
+    <div class="action-card">
+        <div class="action-card-icon">📋</div>
+        <h3>Apply as Candidate</h3>
+        <p>Submit nomination with your documents</p>
+        <a href="{{ url_for('apply_nomination') }}" class="btn btn-secondary btn-full">Apply Now</a>
+    </div>
+
+    <div class="action-card">
+        <div class="action-card-icon">📊</div>
+        <h3>My Nomination</h3>
+        <p>View status of your nomination application</p>
+        <a href="{{ url_for('nomination_status') }}" class="btn btn-outline btn-full">Check Status</a>
+    </div>
+
+    <div class="action-card">
+        <div class="action-card-icon">🏆</div>
+        <h3>Election Results</h3>
+        <p>View live vote counts and results</p>
+        <a href="{{ url_for('election_results') }}" class="btn btn-outline btn-full">View Results</a>
+    </div>
+</div>
+
+<!-- Blockchain Status -->
+<div class="blockchain-status-bar">
+    <span class="bc-icon">⛓️</span>
+    <span>Blockchain Status: <strong>Active & Valid</strong></span>
+    <span class="bc-divider">|</span>
+    <span>Chain Length: <strong id="chainLength">{{ chain_length }} blocks</strong></span>
+    <span class="bc-divider">|</span>
+    <span>Security: <strong style="color: #28a745;">SHA-256 Verified</strong></span>
+</div>
+
+<!-- Approved Candidates Section — FIX: fetched from central DB, same for all users -->
+<section class="section candidates-section">
+    <div class="section-header">
+        <h2>Approved Candidates</h2>
+        <p>These candidates have been verified and approved to contest</p>
+    </div>
+
+    {% if candidates %}
+        {% set current_role = namespace(value='') %}
+        {% for candidate in candidates %}
+            {% if candidate.role != current_role.value %}
+                {% if current_role.value != '' %}</div></div>{% endif %}
+                {% set current_role.value = candidate.role %}
+                <div class="role-section">
+                <h3 class="role-heading">
+                    {% if candidate.role == 'President' %}👑
+                    {% elif candidate.role == 'Vice President' %}🥈
+                    {% elif candidate.role == 'Secretary' %}📝
+                    {% elif candidate.role == 'Treasurer' %}💰
+                    {% else %}🏅{% endif %}
+                    {{ candidate.role }}
+                </h3>
+                <div class="candidates-grid">
+            {% endif %}
+
+            <div class="candidate-card">
+                <div class="candidate-avatar">
+                    {{ candidate.name[0] | upper }}
+                </div>
+                <div class="candidate-info">
+                    <h4>{{ candidate.name }}</h4>
+                    <p class="candidate-dept">{{ candidate.department }}</p>
+                    {% if candidate.manifesto %}
+                        <p class="candidate-manifesto">"{{ candidate.manifesto[:100] }}{% if candidate.manifesto|length > 100 %}...{% endif %}"</p>
+                    {% endif %}
+                </div>
+                <div class="candidate-badge">✅ Verified</div>
+            </div>
+        {% endfor %}
+        </div></div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>No Approved Candidates Yet</h3>
+            <p>Nominations are being reviewed. Check back soon.</p>
+        </div>
+    {% endif %}
+</section>
+
+<!-- How Voting Works -->
+<section class="section info-section">
+    <h2>How to Vote</h2>
+    <div class="info-steps">
+        <div class="info-step">
+            <div class="info-step-num">1</div>
+            <div class="info-step-text">
+                <h4>Verify Identity</h4>
+                <p>Upload your student ID card. AI OCR will extract your details.</p>
+            </div>
+        </div>
+        <div class="info-step-arrow">→</div>
+        <div class="info-step">
+            <div class="info-step-num">2</div>
+            <div class="info-step-text">
+                <h4>Camera Selfie</h4>
+                <p>Use your camera to capture a live selfie for face verification.</p>
+            </div>
+        </div>
+        <div class="info-step-arrow">→</div>
+        <div class="info-step">
+            <div class="info-step-num">3</div>
+            <div class="info-step-text">
+                <h4>Cast Vote</h4>
+                <p>Select your preferred candidate and submit.</p>
+            </div>
+        </div>
+        <div class="info-step-arrow">→</div>
+        <div class="info-step">
+            <div class="info-step-num">4</div>
+            <div class="info-step-text">
+                <h4>Blockchain Confirmation</h4>
+                <p>Your vote is stored on blockchain with a unique hash.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

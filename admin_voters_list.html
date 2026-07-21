@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Voters Database | Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🗳️ Voters Database</h1>
+    <p>All registered voters and their voting status</p>
+</div>
+
+<div class="admin-action-bar" style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+    <a href="{{ url_for('export_voters') }}" class="btn btn-primary">📥 Export to Excel</a>
+    <form action="{{ url_for('clean_votes') }}" method="POST" style="display:inline;"
+          onsubmit="return confirm('⚠️ This will DELETE all vote records. Voter accounts are kept. Are you sure?')">
+        <button type="submit" class="btn btn-outline" style="border-color:#e74c3c;color:#e74c3c;">🧹 Clear All Vote Records</button>
+    </form>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">← Back to Dashboard</a>
+</div>
+
+{# Summary stats #}
+{% set total      = voters | length %}
+{% set voted_cnt  = voters | selectattr('has_voted', 'equalto', 'Yes') | list | length %}
+{% set pending    = total - voted_cnt %}
+<div style="display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+    <div style="background:#eaf4fb; border-radius:8px; padding:12px 24px; text-align:center;">
+        <div style="font-size:1.6rem; font-weight:700; color:#1a73e8;">{{ total }}</div>
+        <div style="font-size:0.85rem; color:#555;">Total Voters</div>
+    </div>
+    <div style="background:#eafaf1; border-radius:8px; padding:12px 24px; text-align:center;">
+        <div style="font-size:1.6rem; font-weight:700; color:#28a745;">{{ voted_cnt }}</div>
+        <div style="font-size:0.85rem; color:#555;">Voted</div>
+    </div>
+    <div style="background:#fef9e7; border-radius:8px; padding:12px 24px; text-align:center;">
+        <div style="font-size:1.6rem; font-weight:700; color:#e67e22;">{{ pending }}</div>
+        <div style="font-size:0.85rem; color:#555;">Not Yet Voted</div>
+    </div>
+</div>
+
+<div class="nominations-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Course</th>
+                <th>Year</th>
+                <th>Has Voted</th>
+                <th>Voted For (All)</th>
+                <th>Positions</th>
+                <th>Vote Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in voters %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ v['username'] }}</td>
+                <td>{{ v['full_name'] if v['full_name'] else '-' }}</td>
+                <td>{{ v['email'] }}</td>
+                <td>{{ v['course'] if v['course'] else '-' }}</td>
+                <td>{{ v['year'] if v['year'] else '-' }}</td>
+                <td>
+                    {% if v['has_voted'] == 'Yes' %}
+                        <span style="color:#28a745; font-weight:bold;">✅ Yes</span>
+                    {% else %}
+                        <span style="color:#dc3545;">❌ No</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if v['voted_for_names'] %}
+                        {% for name in v['voted_for_names'] %}
+                            <span style="display:block; padding:2px 0;">• {{ name }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color:#aaa;">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if v['voted_for_roles'] %}
+                        {% for role in v['voted_for_roles'] %}
+                            <span class="badge badge-role" style="display:block; margin:2px 0;">{{ role }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color:#aaa;">-</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px; color:#666;">
+                    {% if v['vote_timestamp'] %}
+                        {{ v['vote_timestamp'] | fmt_datetime }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="10" style="text-align:center; padding:20px; color:#888;">
+                    No voters found. Users need to register first.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

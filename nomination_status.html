@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Nomination Status | College Election System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 My Nomination Status</h1>
+    <p>Track the progress and verification result of your application</p>
+</div>
+
+{% if nomination %}
+
+<!-- Status Banner -->
+<div class="status-banner status-{{ nomination.status }}" style="
+    padding:24px; border-radius:12px; margin-bottom:28px; text-align:center;
+    {% if nomination.status == 'approved' %}background:#d4edda; border:2px solid #28a745;
+    {% elif nomination.status == 'rejected' %}background:#f8d7da; border:2px solid #dc3545;
+    {% else %}background:#fff3cd; border:2px solid #ffc107;{% endif %}
+">
+    <div style="font-size:48px; margin-bottom:8px;">
+        {% if nomination.status == 'approved' %}🎉
+        {% elif nomination.status == 'rejected' %}❌
+        {% else %}⏳{% endif %}
+    </div>
+    <h2 style="margin:0; {% if nomination.status == 'approved' %}color:#155724;{% elif nomination.status == 'rejected' %}color:#721c24;{% else %}color:#856404;{% endif %}">
+        {{ nomination.status | upper }}
+    </h2>
+
+    {% if nomination.status == 'approved' %}
+    <p style="color:#155724; font-size:16px; margin:8px 0 0;">
+        Congratulations! Your nomination has been successfully approved.
+    </p>
+    {% elif nomination.status == 'rejected' %}
+    <p style="color:#721c24; font-size:16px; margin:8px 0 0;">
+        Your nomination has been rejected due to invalid/mismatched details.
+    </p>
+    {% else %}
+    <p style="color:#856404; margin:8px 0 0;">Your application is under review.</p>
+    {% endif %}
+</div>
+
+<div class="two-col-layout">
+
+    <!-- Left: Nomination Details -->
+    <div class="form-panel" style="flex:1.5;">
+        <div class="panel-header"><h2>📄 Application Details</h2></div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <tbody>
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d; width:40%;">Full Name</td>
+                    <td style="padding:10px 8px; font-weight:600;">{{ nomination.name }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">Department</td>
+                    <td style="padding:10px 8px;">{{ nomination.department }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">Year of Study</td>
+                    <td style="padding:10px 8px;">{{ nomination.year or '—' }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">CGPA</td>
+                    <td style="padding:10px 8px;">{{ '%.2f'|format(nomination.cgpa|float) if nomination.cgpa else '—' }}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">Position Applied</td>
+                    <td style="padding:10px 8px;"><strong>{{ nomination.role }}</strong></td>
+                </tr>
+                {% if nomination.motto %}
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">Motto</td>
+                    <td style="padding:10px 8px;"><em>"{{ nomination.motto }}"</em></td>
+                </tr>
+                {% endif %}
+                {% if nomination.manifesto %}
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:10px 8px; color:#6c757d;">Manifesto</td>
+                    <td style="padding:10px 8px;">{{ nomination.manifesto }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td style="padding:10px 8px; color:#6c757d;">Submitted On</td>
+                    <td style="padding:10px 8px;">{{ nomination.created_at[:19].replace('T', ' ') }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Right: OCR Verification Results -->
+    <div class="info-panel" style="flex:1;">
+
+        <!-- OCR Check Summary -->
+        <div class="info-box">
+            <h3>🤖 AI Verification Results</h3>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+
+                <!-- Name Match -->
+                <div style="display:flex; align-items:center; gap:10px; padding:10px;
+                     background:{{ '#d4edda' if nomination.ocr_name_match else '#f8d7da' }};
+                     border-radius:8px;">
+                    <span style="font-size:20px;">{{ '✅' if nomination.ocr_name_match else '❌' }}</span>
+                    <div>
+                        <strong style="font-size:13px;">Name Match</strong>
+                        <p style="margin:2px 0 0; font-size:12px; color:#555;">
+                            {% if nomination.ocr_name_match %}
+                            Name matched successfully (case-insensitive) across uploaded documents.
+                            {% else %}
+                            Name could not be matched across uploaded documents. Ensure your name is spelled consistently on all documents.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Mark Card (FAIL check) -->
+                <div style="display:flex; align-items:center; gap:10px; padding:10px;
+                     background:{{ '#d4edda' if not nomination.ocr_fail_detected else '#f8d7da' }};
+                     border-radius:8px;">
+                    <span style="font-size:20px;">{{ '✅' if not nomination.ocr_fail_detected else '❌' }}</span>
+                    <div>
+                        <strong style="font-size:13px;">Mark Card</strong>
+                        <p style="margin:2px 0 0; font-size:12px; color:#555;">
+                            {% if not nomination.ocr_fail_detected %}
+                            No FAIL or BACKLOG detected. Result is PASS.
+                            {% else %}
+                            FAIL or BACKLOG keyword detected in mark card.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Register Consistency -->
+                <div style="display:flex; align-items:center; gap:10px; padding:10px;
+                     background:{{ '#d4edda' if nomination.ocr_register_consistent else '#f8d7da' }};
+                     border-radius:8px;">
+                    <span style="font-size:20px;">{{ '✅' if nomination.ocr_register_consistent else '❌' }}</span>
+                    <div>
+                        <strong style="font-size:13px;">Register No. Consistency</strong>
+                        <p style="margin:2px 0 0; font-size:12px; color:#555;">
+                            {% if nomination.ocr_register_consistent %}
+                            Enrollment number is consistent across documents.
+                            {% else %}
+                            Enrollment number mismatch across documents.
+                            {% endif %}
+                        </p>
+                        {% if nomination.ocr_extracted_register %}
+                        <p style="margin:2px 0 0; font-size:11px; color:#888;">
+                            Detected: {{ nomination.ocr_extracted_register }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Rejection reasons -->
+        {% if rejection_reasons %}
+        <div class="info-box" style="margin-top:16px; background:#fff5f5; border:1px solid #f8d7da;">
+            <h3 style="color:#721c24;">❌ Rejection Reasons</h3>
+            <ul style="padding-left:18px; margin:10px 0 0; color:#721c24;">
+                {% for reason in rejection_reasons %}
+                <li style="margin-bottom:6px; font-size:13px;">{{ reason }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Uploaded documents list -->
+        <div class="info-box" style="margin-top:16px;">
+            <h3>📁 Uploaded Documents</h3>
+            <ul style="padding-left:18px; margin:10px 0 0; font-size:13px; color:#495057;">
+                <li>🪪 ID Card: 
+                    {% if nomination.id_card_path %}
+                    <a href="{{ url_for('static', filename='uploads/id_cards/' + nomination.id_card_path) }}"
+                       target="_blank" style="color:#1a237e;">View</a>
+                    {% else %}—{% endif %}
+                </li>
+                <li>🧾 Fee Receipt:
+                    {% if nomination.fee_receipt_path %}
+                    <a href="{{ url_for('static', filename='uploads/fee_receipts/' + nomination.fee_receipt_path) }}"
+                       target="_blank" style="color:#1a237e;">View</a>
+                    {% else %}—{% endif %}
+                </li>
+                <li>📊 Mark Card:
+                    {% if nomination.result_sheet_path %}
+                    <a href="{{ url_for('static', filename='uploads/result_sheets/' + nomination.result_sheet_path) }}"
+                       target="_blank" style="color:#1a237e;">View</a>
+                    {% else %}—{% endif %}
+                </li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+{% else %}
+<!-- No nomination submitted yet -->
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>No Nomination Submitted</h3>
+    <p>You haven't submitted a nomination application yet.</p>
+    <a href="{{ url_for('apply_nomination') }}" class="btn btn-primary">Apply Now</a>
+</div>
+{% endif %}
+{% endblock %}

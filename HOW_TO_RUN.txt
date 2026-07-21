@@ -1,0 +1,59 @@
+============================================================
+  HOW TO RUN - Election BC App (Step-by-Step)
+============================================================
+
+PREREQUISITES:
+  - Python 3.10+
+  - Node.js + npm
+  - Ganache (download from https://trufflesuite.com/ganache/)
+  - Tesseract OCR installed
+
+------------------------------------------------------------
+STEP 1 — Install Python dependencies
+------------------------------------------------------------
+  pip install -r requirements.txt
+
+------------------------------------------------------------
+STEP 2 — Install Node dependencies (for blockchain)
+------------------------------------------------------------
+  npm install
+
+------------------------------------------------------------
+STEP 3 — Start Ganache
+------------------------------------------------------------
+  Open the Ganache app and start a workspace.
+  Make sure it is running on: http://127.0.0.1:7545
+
+------------------------------------------------------------
+STEP 4 — Deploy the smart contract
+------------------------------------------------------------
+  Copy a private key from Ganache (click the key icon next
+  to any account that shows 100 ETH).
+
+  Open the .env file and update:
+    GANACHE_PRIVATE_KEY=0xYOUR_COPIED_PRIVATE_KEY
+    DEPLOYER_PRIVATE_KEY=0xYOUR_COPIED_PRIVATE_KEY
+
+  Then run:
+    npx hardhat run scripts/deploy.js --network ganache
+
+  After deploy, copy the printed contract address and update .env:
+    ELECTION_CONTRACT_ADDRESS=0xYOUR_DEPLOYED_CONTRACT_ADDRESS
+
+------------------------------------------------------------
+STEP 5 — Run the Flask app
+------------------------------------------------------------
+  python app.py
+
+  Then open your browser at: http://127.0.0.1:5000
+
+------------------------------------------------------------
+FIXES APPLIED IN THIS ZIP:
+  1. ocr_utils.py  — Added missing `id_path` parameter to
+                     run_nomination_ocr_checks()
+                     Added `id_info` extraction and return value
+  2. blockchain.py — Fixed web3 middleware import to work with
+                     both web3 v5 and v6 (ExtraDataToPOAMiddleware
+                     vs geth_poa_middleware)
+  3. requirements.txt — Merged web3 + python-dotenv into main file
+============================================================

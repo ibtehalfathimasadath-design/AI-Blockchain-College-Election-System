@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Candidates Database | Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Candidates Database</h1>
+    <p>All nomination applications and approved candidates</p>
+</div>
+
+<div class="admin-action-bar" style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+    <a href="{{ url_for('export_candidates') }}" class="btn btn-primary">📥 Export to Excel</a>
+    <form action="{{ url_for('clean_candidates') }}" method="POST" style="display:inline;"
+          onsubmit="return confirm('⚠️ This will DELETE all nominations and related votes. Are you sure?')">
+        <button type="submit" class="btn btn-outline" style="border-color:#e74c3c;color:#e74c3c;">🧹 Clear All Candidates</button>
+    </form>
+    <a href="{{ url_for('admin_nominations') }}" class="btn btn-outline">📋 Manage Nominations</a>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline">← Back to Dashboard</a>
+</div>
+
+<div class="nominations-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Position</th>
+                <th>Status</th>
+                <th>Votes</th>
+                <th>Username</th>
+                <th>Course</th>
+                <th>Year</th>
+                <th>Applied On</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in candidates %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.department }}</td>
+                <td>{{ c.role }}</td>
+                <td><span class="badge badge-{{ c.status }}">
+                    {% if c.status == 'approved' %}✅{% elif c.status == 'rejected' %}❌{% else %}⏳{% endif %}
+                    {{ c.status | title }}
+                </span></td>
+                <td><strong>{{ c.vote_count }}</strong></td>
+                <td>{{ c.username }}</td>
+                <td>{{ c.course or '-' }}</td>
+                <td>{{ c.year or '-' }}</td>
+                <td>{{ c.created_at | fmt_datetime }}</td>
+                <td>
+                    <form action="{{ url_for('update_nomination_status', nom_id=c.id) }}" method="POST" style="display:inline;">
+                        <select name="status" class="inline-select" onchange="this.form.submit()">
+                            <option value="">Change</option>
+                            <option value="approved">Approve</option>
+                            <option value="rejected">Reject</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="11" style="text-align:center; padding:20px;">No candidates found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
